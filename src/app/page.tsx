@@ -1,103 +1,215 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useCustomers, useBills } from '@/lib/storage';
+import { Users, FileText, IndianRupee, TrendingUp, PlusCircle, ArrowRight } from 'lucide-react';
+import { Bill, Customer } from '@/lib/types';
+
+export default function DashboardPage() {
+  const { customers, loaded: customersLoaded } = useCustomers();
+  const { bills, loaded: billsLoaded } = useBills();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted || !customersLoaded || !billsLoaded) {
+    return (
+      <div className="p-6 lg:p-8 flex items-center justify-center min-h-64">
+        <div className="text-gray-400 animate-pulse">Loading...</div>
+      </div>
+    );
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const todaysBills = bills.filter((b: Bill) => b.date === today);
+  const todaysTotal = todaysBills.reduce((sum: number, b: Bill) => sum + b.subtotal, 0);
+  const totalPending = customers.reduce((sum: number, c: Customer) => sum + Math.max(0, c.pendingBalance), 0);
+  const totalBillsThisMonth = bills.filter((b: Bill) =>
+    b.date.startsWith(new Date().toISOString().slice(0, 7))
+  ).length;
+
+  const recentBills = [...bills]
+    .sort((a: Bill, b: Bill) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5);
+
+  const topDebtors = [...customers]
+    .filter((c: Customer) => c.pendingBalance > 0)
+    .sort((a: Customer, b: Customer) => b.pendingBalance - a.pendingBalance)
+    .slice(0, 5);
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="p-4 lg:p-8 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            {new Date().toLocaleDateString('en-IN', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })}
+          </p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+        <Link
+          href="/bills/new"
+          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm self-start sm:self-auto"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <PlusCircle className="w-4 h-4" />
+          New Bill
+        </Link>
+      </div>
+
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+              <Users className="w-5 h-5 text-blue-600" />
+            </div>
+            <span className="text-gray-500 text-sm">Customers</span>
+          </div>
+          <div className="text-2xl font-bold text-gray-900">{customers.length}</div>
+          <Link href="/customers" className="text-blue-600 text-xs mt-1 flex items-center gap-0.5 hover:underline">
+            View all <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+              <FileText className="w-5 h-5 text-green-600" />
+            </div>
+            <span className="text-gray-500 text-sm">Today&apos;s Bills</span>
+          </div>
+          <div className="text-2xl font-bold text-gray-900">{todaysBills.length}</div>
+          <Link href="/bills" className="text-green-600 text-xs mt-1 flex items-center gap-0.5 hover:underline">
+            View all <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-emerald-600" />
+            </div>
+            <span className="text-gray-500 text-sm">Today&apos;s Sales</span>
+          </div>
+          <div className="text-2xl font-bold text-gray-900 flex items-center gap-0.5">
+            <IndianRupee className="w-5 h-5" />
+            {todaysTotal.toFixed(0)}
+          </div>
+          <div className="text-gray-400 text-xs mt-1">{totalBillsThisMonth} bills this month</div>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center">
+              <IndianRupee className="w-5 h-5 text-red-600" />
+            </div>
+            <span className="text-gray-500 text-sm">To Collect</span>
+          </div>
+          <div className="text-2xl font-bold text-red-600 flex items-center gap-0.5">
+            <IndianRupee className="w-5 h-5" />
+            {totalPending.toFixed(0)}
+          </div>
+          <div className="text-gray-400 text-xs mt-1">Pending balances</div>
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Recent bills */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="font-semibold text-gray-900">Recent Bills</h2>
+            <Link href="/bills" className="text-green-600 text-sm hover:underline flex items-center gap-1">
+              View all <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          {recentBills.length === 0 ? (
+            <div className="px-5 py-8 text-center text-gray-400">
+              <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
+              <p>No bills yet</p>
+              <Link href="/bills/new" className="text-green-600 text-sm hover:underline mt-1 block">
+                Create first bill
+              </Link>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {recentBills.map((bill: Bill) => (
+                <Link
+                  key={bill.id}
+                  href={`/bills/${bill.id}`}
+                  className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors"
+                >
+                  <div>
+                    <div className="font-medium text-gray-900 text-sm">{bill.customerName}</div>
+                    <div className="text-gray-400 text-xs">
+                      #{bill.billNumber} &middot;{' '}
+                      {new Date(bill.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold text-gray-900 text-sm flex items-center gap-0.5">
+                      <IndianRupee className="w-3.5 h-3.5" />
+                      {bill.subtotal.toFixed(0)}
+                    </div>
+                    {bill.newBalance > 0 && (
+                      <div className="text-red-500 text-xs">Bal: ₹{bill.newBalance.toFixed(0)}</div>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Top debtors */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="font-semibold text-gray-900">Pending Collections</h2>
+            <Link href="/customers" className="text-green-600 text-sm hover:underline flex items-center gap-1">
+              View all <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          {topDebtors.length === 0 ? (
+            <div className="px-5 py-8 text-center text-gray-400">
+              <IndianRupee className="w-8 h-8 mx-auto mb-2 opacity-40" />
+              <p>All balances cleared!</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {topDebtors.map((customer: Customer) => (
+                <Link
+                  key={customer.id}
+                  href={`/customers/${customer.id}`}
+                  className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+                      <span className="text-red-600 font-semibold text-sm">
+                        {customer.name.charAt(0)}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900 text-sm">{customer.name}</div>
+                      {customer.phone && (
+                        <div className="text-gray-400 text-xs">{customer.phone}</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="font-bold text-red-600 flex items-center gap-0.5">
+                    <IndianRupee className="w-3.5 h-3.5" />
+                    {customer.pendingBalance.toFixed(0)}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
