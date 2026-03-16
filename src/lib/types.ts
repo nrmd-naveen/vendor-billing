@@ -9,6 +9,8 @@ export interface Customer {
 export interface Vegetable {
   id: string;
   name: string;
+  englishName: string;
+  nicknames: string[];
   emoji: string;
   defaultPrice: number;
 }

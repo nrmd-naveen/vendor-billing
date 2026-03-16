@@ -12,7 +12,9 @@ const EMOJI_OPTIONS = [
 ];
 
 interface EditState {
-  name: string;
+  name: string; // This will be the main display name (e.g. Tamil)
+  englishName: string;
+  nicknames: string; // Comma separated for input
   emoji: string;
   defaultPrice: string;
 }
@@ -21,9 +23,9 @@ export default function VegetablesPage() {
   const { vegetables, addVegetable, updateVegetable, deleteVegetable, loaded } = useVegetables();
   const [mounted, setMounted] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
-  const [addForm, setAddForm] = useState<EditState>({ name: '', emoji: '🥦', defaultPrice: '' });
+  const [addForm, setAddForm] = useState<EditState>({ name: '', englishName: '', nicknames: '', emoji: '🥦', defaultPrice: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<EditState>({ name: '', emoji: '', defaultPrice: '' });
+  const [editForm, setEditForm] = useState<EditState>({ name: '', englishName: '', nicknames: '', emoji: '', defaultPrice: '' });
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => setMounted(true), []);
@@ -40,22 +42,32 @@ export default function VegetablesPage() {
     if (!addForm.name.trim() || !addForm.emoji) return;
     addVegetable({
       name: addForm.name.trim(),
+      englishName: addForm.englishName.trim(),
+      nicknames: addForm.nicknames.split(',').map(n => n.trim()).filter(n => n !== '').slice(0, 2),
       emoji: addForm.emoji,
       defaultPrice: parseFloat(addForm.defaultPrice) || 0,
     });
-    setAddForm({ name: '', emoji: '🥦', defaultPrice: '' });
+    setAddForm({ name: '', englishName: '', nicknames: '', emoji: '🥦', defaultPrice: '' });
     setShowAdd(false);
   };
 
   const startEdit = (v: Vegetable) => {
     setEditingId(v.id);
-    setEditForm({ name: v.name, emoji: v.emoji, defaultPrice: v.defaultPrice.toString() });
+    setEditForm({
+      name: v.name,
+      englishName: v.englishName || '',
+      nicknames: v.nicknames?.join(', ') || '',
+      emoji: v.emoji,
+      defaultPrice: v.defaultPrice.toString()
+    });
   };
 
   const saveEdit = () => {
     if (!editingId || !editForm.name.trim()) return;
     updateVegetable(editingId, {
       name: editForm.name.trim(),
+      englishName: editForm.englishName.trim(),
+      nicknames: editForm.nicknames.split(',').map(n => n.trim()).filter(n => n !== '').slice(0, 2),
       emoji: editForm.emoji,
       defaultPrice: parseFloat(editForm.defaultPrice) || 0,
     });
@@ -112,14 +124,34 @@ export default function VegetablesPage() {
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Vegetable Name <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Main Name (Tamil) <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 value={addForm.name}
                 onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
-                placeholder="e.g. Snake Gourd"
+                placeholder="e.g. கத்தரிக்காய்"
                 className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500"
                 autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">English Name</label>
+              <input
+                type="text"
+                value={addForm.englishName}
+                onChange={(e) => setAddForm({ ...addForm, englishName: e.target.value })}
+                placeholder="e.g. Brinjal"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nicknames (max 2, comma separated)</label>
+              <input
+                type="text"
+                value={addForm.nicknames}
+                onChange={(e) => setAddForm({ ...addForm, nicknames: e.target.value })}
+                placeholder="e.g. Eggplant, Katsiri"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
@@ -208,12 +240,29 @@ export default function VegetablesPage() {
                       </button>
                     ))}
                   </div>
-                  <input
-                    type="text"
-                    value={editForm.name}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      placeholder="Tamil Name"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    <input
+                      type="text"
+                      value={editForm.englishName}
+                      onChange={(e) => setEditForm({ ...editForm, englishName: e.target.value })}
+                      placeholder="English Name"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    <input
+                      type="text"
+                      value={editForm.nicknames}
+                      onChange={(e) => setEditForm({ ...editForm, nicknames: e.target.value })}
+                      placeholder="Nicknames (comma separated)"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
                   <div className="relative">
                     <IndianRupee className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                     <input
@@ -239,7 +288,15 @@ export default function VegetablesPage() {
                   <div className="text-3xl w-10 text-center shrink-0">{v.emoji}</div>
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-gray-900 truncate">{v.name}</div>
-                    <div className="text-green-700 text-sm font-semibold flex items-center gap-0.5">
+                    {v.englishName && (
+                      <div className="text-gray-500 text-xs truncate">{v.englishName}</div>
+                    )}
+                    {v.nicknames && v.nicknames.length > 0 && (
+                      <div className="text-gray-400 text-[10px] truncate italic">
+                        &quot;{v.nicknames.join(', ')}&quot;
+                      </div>
+                    )}
+                    <div className="text-green-700 text-sm font-semibold flex items-center gap-0.5 mt-0.5">
                       <IndianRupee className="w-3 h-3" />{v.defaultPrice}/kg
                     </div>
                   </div>

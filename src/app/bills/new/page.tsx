@@ -58,9 +58,14 @@ function NewBillForm() {
     (c.phone && c.phone.includes(customerSearch))
   );
 
-  const filteredVegs = vegetables.filter((v) =>
-    v.name.toLowerCase().includes(entryVegSearch.toLowerCase())
-  );
+  const filteredVegs = vegetables.filter((v) => {
+    const s = entryVegSearch.toLowerCase();
+    return (
+      v.name.toLowerCase().includes(s) ||
+      (v.englishName && v.englishName.toLowerCase().includes(s)) ||
+      (v.nicknames && v.nicknames.some(n => n.toLowerCase().includes(s)))
+    );
+  });
 
   // When a veg is picked, fill rate and move focus to rate input
   const pickVeg = useCallback((veg: Vegetable) => {
@@ -361,6 +366,7 @@ function NewBillForm() {
                     )}
                   >
                     {v.emoji} {v.name}
+                    {v.englishName && <span className="ml-2 text-gray-500 text-xs text-italic">({v.englishName})</span>}
                     <span className="ml-2 text-gray-400 text-xs">₹{v.defaultPrice}/kg</span>
                   </button>
                 ))}
