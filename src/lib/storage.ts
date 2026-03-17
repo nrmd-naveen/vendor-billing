@@ -2,73 +2,48 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Customer, Vegetable, Bill } from './types';
-import { DEFAULT_VEGETABLES } from './defaults';
 
-function useLocalStorage<T>(key: string, initialValue: T) {
-  const [value, setValue] = useState<T>(initialValue);
+// ── Customers ────────────────────────────────────────────────────────────────
+
+export function useCustomers() {
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        setValue(JSON.parse(stored));
-      }
-    } catch (e) {
-      console.error(`Error reading localStorage key "${key}":`, e);
-    }
-    setLoaded(true);
-  }, [key]);
+    fetch('/api/customers')
+      .then((r) => r.json())
+      .then((data) => { setCustomers(data); setLoaded(true); })
+      .catch(() => setLoaded(true));
+  }, []);
 
-  const set = useCallback(
-    (newValue: T | ((prev: T) => T)) => {
-      setValue((prev) => {
-        const next = typeof newValue === 'function' ? (newValue as (p: T) => T)(prev) : newValue;
-        try {
-          localStorage.setItem(key, JSON.stringify(next));
-        } catch (e) {
-          console.error(`Error writing localStorage key "${key}":`, e);
-        }
-        return next;
-      });
-    },
-    [key]
-  );
+  const addCustomer = useCallback((data: Omit<Customer, 'id' | 'createdAt'>) => {
+    const customer: Customer = {
+      ...data,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+    };
+    setCustomers((prev) => [...prev, customer]);
+    fetch('/api/customers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(customer),
+    });
+    return customer;
+  }, []);
 
-  return [value, set, loaded] as const;
-}
+  const updateCustomer = useCallback((id: string, data: Partial<Customer>) => {
+    setCustomers((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)));
+    fetch(`/api/customers/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+  }, []);
 
-export function useCustomers() {
-  const [customers, setCustomers, loaded] = useLocalStorage<Customer[]>('chark_customers', []);
-
-  const addCustomer = useCallback(
-    (data: Omit<Customer, 'id' | 'createdAt'>) => {
-      const customer: Customer = {
-        ...data,
-        id: crypto.randomUUID(),
-        createdAt: new Date().toISOString(),
-      };
-      setCustomers((prev) => [...prev, customer]);
-      return customer;
-    },
-    [setCustomers]
-  );
-
-  const updateCustomer = useCallback(
-    (id: string, data: Partial<Customer>) => {
-      setCustomers((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, ...data } : c))
-      );
-    },
-    [setCustomers]
-  );
-
-  const deleteCustomer = useCallback(
-    (id: string) => {
-      setCustomers((prev) => prev.filter((c) => c.id !== id));
-    },
-    [setCustomers]
-  );
+  const deleteCustomer = useCallback((id: string) => {
+    setCustomers((prev) => prev.filter((c) => c.id !== id));
+    fetch(`/api/customers/${id}`, { method: 'DELETE' });
+  }, []);
 
   const getCustomer = useCallback(
     (id: string) => customers.find((c) => c.id === id),
@@ -78,78 +53,80 @@ export function useCustomers() {
   return { customers, addCustomer, updateCustomer, deleteCustomer, getCustomer, loaded };
 }
 
+// ── Vegetables ───────────────────────────────────────────────────────────────
+
 export function useVegetables() {
-  const [vegetables, setVegetables, loaded] = useLocalStorage<Vegetable[]>(
-    'chark_vegetables',
-    DEFAULT_VEGETABLES
-  );
+  const [vegetables, setVegetables] = useState<Vegetable[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (loaded) {
-      const stored = localStorage.getItem('chark_vegetables');
-      if (!stored) {
-        localStorage.setItem('chark_vegetables', JSON.stringify(DEFAULT_VEGETABLES));
-      }
-    }
-  }, [loaded]);
+    fetch('/api/vegetables')
+      .then((r) => r.json())
+      .then((data) => { setVegetables(data); setLoaded(true); })
+      .catch(() => setLoaded(true));
+  }, []);
 
-  const addVegetable = useCallback(
-    (data: Omit<Vegetable, 'id'>) => {
-      const vegetable: Vegetable = {
-        ...data,
-        id: crypto.randomUUID(),
-      };
-      setVegetables((prev) => [...prev, vegetable]);
-      return vegetable;
-    },
-    [setVegetables]
-  );
+  const addVegetable = useCallback((data: Omit<Vegetable, 'id'>) => {
+    const vegetable: Vegetable = { ...data, id: crypto.randomUUID() };
+    setVegetables((prev) => [...prev, vegetable]);
+    fetch('/api/vegetables', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(vegetable),
+    });
+    return vegetable;
+  }, []);
 
-  const updateVegetable = useCallback(
-    (id: string, data: Partial<Vegetable>) => {
-      setVegetables((prev) =>
-        prev.map((v) => (v.id === id ? { ...v, ...data } : v))
-      );
-    },
-    [setVegetables]
-  );
+  const updateVegetable = useCallback((id: string, data: Partial<Vegetable>) => {
+    setVegetables((prev) => prev.map((v) => (v.id === id ? { ...v, ...data } : v)));
+    fetch(`/api/vegetables/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+  }, []);
 
-  const deleteVegetable = useCallback(
-    (id: string) => {
-      setVegetables((prev) => prev.filter((v) => v.id !== id));
-    },
-    [setVegetables]
-  );
+  const deleteVegetable = useCallback((id: string) => {
+    setVegetables((prev) => prev.filter((v) => v.id !== id));
+    fetch(`/api/vegetables/${id}`, { method: 'DELETE' });
+  }, []);
 
   return { vegetables, addVegetable, updateVegetable, deleteVegetable, loaded };
 }
 
+// ── Bills ────────────────────────────────────────────────────────────────────
+
 export function useBills() {
-  const [bills, setBills, loaded] = useLocalStorage<Bill[]>('chark_bills', []);
-  const [billCounter, setBillCounter, counterLoaded] = useLocalStorage<number>('chark_bill_counter', 1000);
+  const [bills, setBills] = useState<Bill[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
-  const addBill = useCallback(
-    (data: Omit<Bill, 'id' | 'billNumber' | 'createdAt'>) => {
-      const billNumber = billCounter + 1;
-      setBillCounter(billNumber);
-      const bill: Bill = {
-        ...data,
-        id: crypto.randomUUID(),
-        billNumber,
-        createdAt: new Date().toISOString(),
-      };
-      setBills((prev) => [...prev, bill]);
-      return bill;
-    },
-    [billCounter, setBillCounter, setBills]
-  );
+  useEffect(() => {
+    fetch('/api/bills')
+      .then((r) => r.json())
+      .then((data) => { setBills(data); setLoaded(true); })
+      .catch(() => setLoaded(true));
+  }, []);
 
-  const deleteBill = useCallback(
-    (id: string) => {
-      setBills((prev) => prev.filter((b) => b.id !== id));
-    },
-    [setBills]
-  );
+  const addBill = useCallback(async (data: Omit<Bill, 'id' | 'billNumber' | 'createdAt'>) => {
+    const payload = {
+      ...data,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+    };
+    const res = await fetch('/api/bills', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const bill: Bill = await res.json();
+    setBills((prev) => [bill, ...prev]);
+    return bill;
+  }, []);
+
+  const deleteBill = useCallback((id: string) => {
+    setBills((prev) => prev.filter((b) => b.id !== id));
+    fetch(`/api/bills/${id}`, { method: 'DELETE' });
+  }, []);
 
   const getBill = useCallback(
     (id: string) => bills.find((b) => b.id === id),
@@ -161,8 +138,10 @@ export function useBills() {
     [bills]
   );
 
-  return { bills, addBill, deleteBill, getBill, getBillsByCustomer, loaded: loaded && counterLoaded };
+  return { bills, addBill, deleteBill, getBill, getBillsByCustomer, loaded };
 }
+
+// ── Composite ────────────────────────────────────────────────────────────────
 
 export function useStore() {
   const customerStore = useCustomers();

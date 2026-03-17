@@ -4,8 +4,8 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCustomers, useBills } from '@/lib/storage';
-import { ArrowLeft, Phone, IndianRupee, FileText, PlusCircle, Edit2, Trash2, Check, X } from 'lucide-react';
-import { Bill } from '@/lib/types';
+import { ArrowLeft, Phone, IndianRupee, FileText, PlusCircle, Edit2, Trash2, Check, X, Banknote } from 'lucide-react';
+import { Bill, CUSTOMER_PREFIXES } from '@/lib/types';
 import clsx from 'clsx';
 
 export default function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -15,10 +15,11 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
   const { bills, loaded: billsLoaded } = useBills();
   const [mounted, setMounted] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', phone: '', pendingBalance: '' });
+  const [editForm, setEditForm] = useState({ name: '', nickname: '', code: '', phone: '', prefix: 'திரு', pendingBalance: '' });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [adjustMode, setAdjustMode] = useState(false);
-  const [adjustAmount, setAdjustAmount] = useState('');
+  const [collectMode, setCollectMode] = useState(false);
+  const [collectAmount, setCollectAmount] = useState('');
+  const [collectDone, setCollectDone] = useState(false);
 
   useEffect(() => setMounted(true), []);
 
@@ -30,7 +31,10 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
     if (customer) {
       setEditForm({
         name: customer.name,
+        nickname: customer.nickname || '',
+        code: customer.code ? String(customer.code) : '',
         phone: customer.phone || '',
+        prefix: customer.prefix || 'திரு',
         pendingBalance: customer.pendingBalance.toString(),
       });
     }
@@ -57,7 +61,10 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
     if (!editForm.name.trim()) return;
     updateCustomer(id, {
       name: editForm.name.trim(),
+      nickname: editForm.nickname.trim() || undefined,
+      code: editForm.code ? parseInt(editForm.code) : undefined,
       phone: editForm.phone.trim() || undefined,
+      prefix: editForm.prefix || 'திரு',
       pendingBalance: parseFloat(editForm.pendingBalance) || 0,
     });
     setEditMode(false);
@@ -68,12 +75,14 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
     router.push('/customers');
   };
 
-  const handleAdjust = () => {
-    const amount = parseFloat(adjustAmount);
-    if (isNaN(amount)) return;
-    updateCustomer(id, { pendingBalance: customer.pendingBalance + amount });
-    setAdjustMode(false);
-    setAdjustAmount('');
+  const handleCollect = () => {
+    const amount = parseFloat(collectAmount);
+    if (isNaN(amount) || amount <= 0) return;
+    updateCustomer(id, { pendingBalance: customer.pendingBalance - amount });
+    setCollectMode(false);
+    setCollectAmount('');
+    setCollectDone(true);
+    setTimeout(() => setCollectDone(false), 2000);
   };
 
   const totalSpent = customerBills.reduce((s: number, b: Bill) => s + b.subtotal, 0);
@@ -93,22 +102,34 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
           <div className="space-y-4">
             <h2 className="font-bold text-lg text-gray-900">Edit Customer</h2>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-              <input
-                type="text"
-                value={editForm.name}
-                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Prefix & Name</label>
+              <div className="flex gap-2">
+                <select value={editForm.prefix} onChange={(e) => setEditForm({ ...editForm, prefix: e.target.value })}
+                  className="border border-gray-200 rounded-lg px-2 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white w-28 shrink-0">
+                  {CUSTOMER_PREFIXES.map(p => <option key={p} value={p}>{p || '(none)'}</option>)}
+                </select>
+                <input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nickname (bill display)</label>
+                <input type="text" value={editForm.nickname} onChange={(e) => setEditForm({ ...editForm, nickname: e.target.value })}
+                  placeholder="e.g. CM"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Code</label>
+                <input type="number" min="1" value={editForm.code} onChange={(e) => setEditForm({ ...editForm, code: e.target.value })}
+                  placeholder="e.g. 1"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500" />
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-              <input
-                type="tel"
-                value={editForm.phone}
-                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
+              <input type="tel" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Balance Owed (₹)</label>
@@ -137,7 +158,12 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                   <span className="text-green-700 font-bold text-2xl">{customer.name.charAt(0)}</span>
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold text-gray-900">{customer.name}</h1>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {customer.code && <span className="text-xs font-mono bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{customer.code}</span>}
+                    {customer.prefix && <span className="text-sm text-gray-500">{customer.prefix}</span>}
+                    <h1 className="text-xl font-bold text-gray-900">{customer.name}</h1>
+                    {customer.nickname && <span className="text-base text-gray-500">({customer.nickname})</span>}
+                  </div>
                   {customer.phone && (
                     <a href={`tel:${customer.phone}`} className="flex items-center gap-1 text-gray-500 text-sm mt-1 hover:text-green-600">
                       <Phone className="w-3.5 h-3.5" />
@@ -189,39 +215,59 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               </div>
             </div>
 
-            {/* Balance adjustment */}
-            {adjustMode ? (
-              <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
-                <p className="text-sm font-medium text-gray-700">Adjust balance manually</p>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={adjustAmount}
-                      onChange={(e) => setAdjustAmount(e.target.value)}
-                      placeholder="Amount (negative to reduce)"
-                      className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                    />
+            {/* Quick collection */}
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              {collectMode ? (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-700">
+                    Amount collected from {customer.nickname || customer.name}
+                  </p>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={collectAmount}
+                        onChange={(e) => setCollectAmount(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleCollect()}
+                        placeholder="e.g. 5000"
+                        className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                        autoFocus
+                      />
+                    </div>
+                    <button onClick={handleCollect} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm">
+                      Collect
+                    </button>
+                    <button onClick={() => { setCollectMode(false); setCollectAmount(''); }} className="px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                  <button onClick={handleAdjust} className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                    <Check className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => setAdjustMode(false)} className="px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                    <X className="w-4 h-4" />
-                  </button>
+                  {customer.pendingBalance > 0 && (
+                    <p className="text-xs text-gray-400">
+                      Current balance: ₹{customer.pendingBalance.toFixed(2)} → after collection: ₹{Math.max(0, customer.pendingBalance - (parseFloat(collectAmount) || 0)).toFixed(2)}
+                    </p>
+                  )}
                 </div>
-                <p className="text-xs text-gray-400">Use negative value to record payment (e.g. -500 to reduce balance by ₹500)</p>
-              </div>
-            ) : (
-              <button
-                onClick={() => setAdjustMode(true)}
-                className="mt-4 w-full border border-dashed border-gray-300 text-gray-500 py-2 rounded-lg text-sm hover:border-green-400 hover:text-green-600 transition-colors"
-              >
-                Adjust Balance Manually
-              </button>
-            )}
+              ) : (
+                <button
+                  onClick={() => setCollectMode(true)}
+                  className={clsx(
+                    'w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                    collectDone
+                      ? 'bg-green-50 text-green-700 border border-green-200'
+                      : 'bg-green-600 hover:bg-green-700 text-white'
+                  )}
+                >
+                  {collectDone ? (
+                    <><Check className="w-4 h-4" /> Collected</>
+                  ) : (
+                    <><Banknote className="w-4 h-4" /> வரவு பதிவு — Record Collection</>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>

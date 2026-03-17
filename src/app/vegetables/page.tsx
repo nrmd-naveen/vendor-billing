@@ -12,20 +12,21 @@ const EMOJI_OPTIONS = [
 ];
 
 interface EditState {
-  name: string; // This will be the main display name (e.g. Tamil)
+  name: string;
   englishName: string;
-  nicknames: string; // Comma separated for input
+  nicknames: string;
   emoji: string;
   defaultPrice: string;
+  code: string;
 }
 
 export default function VegetablesPage() {
   const { vegetables, addVegetable, updateVegetable, deleteVegetable, loaded } = useVegetables();
   const [mounted, setMounted] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
-  const [addForm, setAddForm] = useState<EditState>({ name: '', englishName: '', nicknames: '', emoji: '🥦', defaultPrice: '' });
+  const [addForm, setAddForm] = useState<EditState>({ name: '', englishName: '', nicknames: '', emoji: '🥦', defaultPrice: '', code: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<EditState>({ name: '', englishName: '', nicknames: '', emoji: '', defaultPrice: '' });
+  const [editForm, setEditForm] = useState<EditState>({ name: '', englishName: '', nicknames: '', emoji: '', defaultPrice: '', code: '' });
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => setMounted(true), []);
@@ -46,30 +47,29 @@ export default function VegetablesPage() {
       nicknames: addForm.nicknames.split(',').map(n => n.trim()).filter(n => n !== '').slice(0, 2),
       emoji: addForm.emoji,
       defaultPrice: parseFloat(addForm.defaultPrice) || 0,
+      code: addForm.code ? parseInt(addForm.code) : undefined,
     });
-    setAddForm({ name: '', englishName: '', nicknames: '', emoji: '🥦', defaultPrice: '' });
+    setAddForm({ name: '', englishName: '', nicknames: '', emoji: '🥦', defaultPrice: '', code: '' });
     setShowAdd(false);
   };
 
   const startEdit = (v: Vegetable) => {
     setEditingId(v.id);
     setEditForm({
-      name: v.name,
-      englishName: v.englishName || '',
+      name: v.name, englishName: v.englishName || '',
       nicknames: v.nicknames?.join(', ') || '',
-      emoji: v.emoji,
-      defaultPrice: v.defaultPrice.toString()
+      emoji: v.emoji, defaultPrice: v.defaultPrice.toString(),
+      code: v.code ? String(v.code) : '',
     });
   };
 
   const saveEdit = () => {
     if (!editingId || !editForm.name.trim()) return;
     updateVegetable(editingId, {
-      name: editForm.name.trim(),
-      englishName: editForm.englishName.trim(),
+      name: editForm.name.trim(), englishName: editForm.englishName.trim(),
       nicknames: editForm.nicknames.split(',').map(n => n.trim()).filter(n => n !== '').slice(0, 2),
-      emoji: editForm.emoji,
-      defaultPrice: parseFloat(editForm.defaultPrice) || 0,
+      emoji: editForm.emoji, defaultPrice: parseFloat(editForm.defaultPrice) || 0,
+      code: editForm.code ? parseInt(editForm.code) : undefined,
     });
     setEditingId(null);
   };
@@ -158,16 +158,19 @@ export default function VegetablesPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Default Price / kg (₹)</label>
               <div className="relative">
                 <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="number"
-                  min="0"
-                  step="0.5"
-                  value={addForm.defaultPrice}
+                <input type="number" min="0" step="0.5" value={addForm.defaultPrice}
                   onChange={(e) => setAddForm({ ...addForm, defaultPrice: e.target.value })}
                   placeholder="0.00"
-                  className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
+                  className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500" />
               </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Short Code (number)</label>
+              <input type="number" min="1" value={addForm.code}
+                onChange={(e) => setAddForm({ ...addForm, code: e.target.value })}
+                placeholder="e.g. 1"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500" />
+              <p className="text-xs text-gray-400 mt-1">Type this number in bill to quickly select</p>
             </div>
           </div>
           <div className="flex gap-3">
@@ -265,15 +268,14 @@ export default function VegetablesPage() {
                   </div>
                   <div className="relative">
                     <IndianRupee className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={editForm.defaultPrice}
+                    <input type="number" min="0" step="0.5" value={editForm.defaultPrice}
                       onChange={(e) => setEditForm({ ...editForm, defaultPrice: e.target.value })}
-                      className="w-full border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                    />
+                      className="w-full border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
                   </div>
+                  <input type="number" min="1" value={editForm.code}
+                    onChange={(e) => setEditForm({ ...editForm, code: e.target.value })}
+                    placeholder="Code (number)"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
                   <div className="flex gap-2">
                     <button onClick={() => setEditingId(null)} className="flex-1 border border-gray-200 text-gray-600 py-1.5 rounded-lg text-sm hover:bg-gray-50">
                       <X className="w-4 h-4 mx-auto" />
@@ -287,14 +289,13 @@ export default function VegetablesPage() {
                 <div className="p-4 flex items-center gap-3">
                   <div className="text-3xl w-10 text-center shrink-0">{v.emoji}</div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900 truncate">{v.name}</div>
-                    {v.englishName && (
-                      <div className="text-gray-500 text-xs truncate">{v.englishName}</div>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      {v.code && <span className="text-xs font-mono bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded shrink-0">{v.code}</span>}
+                      <span className="font-medium text-gray-900 truncate">{v.name}</span>
+                    </div>
+                    {v.englishName && <div className="text-gray-500 text-xs truncate">{v.englishName}</div>}
                     {v.nicknames && v.nicknames.length > 0 && (
-                      <div className="text-gray-400 text-[10px] truncate italic">
-                        &quot;{v.nicknames.join(', ')}&quot;
-                      </div>
+                      <div className="text-gray-400 text-[10px] truncate italic">&quot;{v.nicknames.join(', ')}&quot;</div>
                     )}
                     <div className="text-green-700 text-sm font-semibold flex items-center gap-0.5 mt-0.5">
                       <IndianRupee className="w-3 h-3" />{v.defaultPrice}/kg

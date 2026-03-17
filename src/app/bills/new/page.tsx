@@ -4,15 +4,13 @@ import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useCustomers, useVegetables, useBills } from '@/lib/storage';
-import { BillItem, Customer, Vegetable } from '@/lib/types';
+import { BillItem, Customer, Sack, Vegetable } from '@/lib/types';
 import {
-  ArrowLeft, Trash2, ChevronDown, IndianRupee, Save, AlertCircle, CornerDownLeft
+  ArrowLeft, Trash2, ChevronDown, IndianRupee, Save, AlertCircle, CornerDownLeft, Package, X
 } from 'lucide-react';
 import clsx from 'clsx';
 
-interface DraftItem extends BillItem {
-  _key: string;
-}
+interface DraftItem extends BillItem { _key: string; }
 
 function NewBillForm() {
   const router = useRouter();
@@ -25,6 +23,7 @@ function NewBillForm() {
   const [customerId, setCustomerId] = useState(searchParams.get('customerId') || '');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [items, setItems] = useState<DraftItem[]>([]);
+  const [coolie, setCoolie] = useState('');
   const [amountPaid, setAmountPaid] = useState('');
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
@@ -32,18 +31,22 @@ function NewBillForm() {
   // Customer search
   const [customerSearch, setCustomerSearch] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [customerDropdownIdx, setCustomerDropdownIdx] = useState(0);
 
-  // Entry row state — the "quick add" inputs at the bottom of the items list
+  // Vegetable entry
   const [entryVegSearch, setEntryVegSearch] = useState('');
   const [entryVeg, setEntryVeg] = useState<Vegetable | null>(null);
   const [entryRate, setEntryRate] = useState('');
-  const [entryWeight, setEntryWeight] = useState('');
+  const [entrySacks, setEntrySacks] = useState<Sack[]>([]);
+  const [entrySackWeight, setEntrySackWeight] = useState('');
   const [showVegDropdown, setShowVegDropdown] = useState(false);
   const [vegDropdownIdx, setVegDropdownIdx] = useState(0);
 
   const vegSearchRef = useRef<HTMLInputElement>(null);
   const rateRef = useRef<HTMLInputElement>(null);
-  const weightRef = useRef<HTMLInputElement>(null);
+  const sackWeightRef = useRef<HTMLInputElement>(null);
+  const vegDropdownRef = useRef<HTMLDivElement>(null);
+  const custDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -53,21 +56,54 @@ function NewBillForm() {
     if (customer && !customerSearch) setCustomerSearch(customer.name);
   }, [customer, customerSearch]);
 
+  // Scroll highlighted veg item into view
+  useEffect(() => {
+    if (!showVegDropdown || !vegDropdownRef.current) return;
+    const el = vegDropdownRef.current.children[vegDropdownIdx] as HTMLElement;
+    if (el) el.scrollIntoView({ block: 'nearest' });
+  }, [vegDropdownIdx, showVegDropdown]);
+
+  // Scroll highlighted customer item into view
+  useEffect(() => {
+    if (!showCustomerDropdown || !custDropdownRef.current) return;
+    const el = custDropdownRef.current.children[customerDropdownIdx] as HTMLElement;
+    if (el) el.scrollIntoView({ block: 'nearest' });
+  }, [customerDropdownIdx, showCustomerDropdown]);
+
   const filteredCustomers = customers.filter((c) =>
+    !customerSearch ||
     c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-    (c.phone && c.phone.includes(customerSearch))
+    (c.phone && c.phone.includes(customerSearch)) ||
+    (c.code && String(c.code).includes(customerSearch)) ||
+    (c.nickname && c.nickname.toLowerCase().includes(customerSearch.toLowerCase()))
   );
 
-  const filteredVegs = vegetables.filter((v) => {
-    const s = entryVegSearch.toLowerCase();
-    return (
-      v.name.toLowerCase().includes(s) ||
-      (v.englishName && v.englishName.toLowerCase().includes(s)) ||
-      (v.nicknames && v.nicknames.some(n => n.toLowerCase().includes(s)))
+  // Vegetable filter: pure number → match code; else text search
+  const filteredVegs = (() => {
+    const s = entryVegSearch.trim();
+    if (!s) return vegetables;
+    const n = parseInt(s);
+    if (!isNaN(n) && String(n) === s) {
+      // Pure number — code match first, then nothing else to avoid confusion
+      const codeMatch = vegetables.filter(v => v.code === n);
+      return codeMatch.length > 0 ? codeMatch : vegetables;
+    }
+    const sl = s.toLowerCase();
+    return vegetables.filter(v =>
+      v.name.toLowerCase().includes(sl) ||
+      (v.englishName && v.englishName.toLowerCase().includes(sl)) ||
+      (v.nicknames && v.nicknames.some(n => n.toLowerCase().includes(sl)))
     );
-  });
+  })();
 
-  // When a veg is picked, fill rate and move focus to rate input
+  const pickCustomer = useCallback((c: Customer) => {
+    setCustomerId(c.id);
+    setCustomerSearch(c.name);
+    setShowCustomerDropdown(false);
+    setCustomerDropdownIdx(0);
+    setTimeout(() => vegSearchRef.current?.focus(), 50);
+  }, []);
+
   const pickVeg = useCallback((veg: Vegetable) => {
     setEntryVeg(veg);
     setEntryVegSearch(veg.name);
@@ -77,38 +113,52 @@ function NewBillForm() {
     setTimeout(() => rateRef.current?.focus(), 0);
   }, []);
 
-  // Commit the entry row as an item
+  const addSack = useCallback(() => {
+    const w = parseFloat(entrySackWeight);
+    if (!w || w <= 0) return;
+    setEntrySacks((prev) => [...prev, { id: crypto.randomUUID(), weight: w }]);
+    setEntrySackWeight('');
+    setTimeout(() => sackWeightRef.current?.focus(), 0);
+  }, [entrySackWeight]);
+
   const commitItem = useCallback(() => {
-    if (!entryVeg) return;
+    if (!entryVeg || !entryRate || entrySacks.length === 0) return;
     const rate = parseFloat(entryRate);
-    const weight = parseFloat(entryWeight);
-    if (!rate || !weight) return;
-
-    setItems((prev) => [
-      ...prev,
-      {
-        _key: crypto.randomUUID(),
-        vegetableId: entryVeg.id,
-        vegetableName: entryVeg.name,
-        emoji: entryVeg.emoji,
-        pricePerKg: rate,
-        weight,
-        amount: rate * weight,
-      },
-    ]);
-
-    // Reset entry row and focus back on veg search
-    setEntryVeg(null);
-    setEntryVegSearch('');
-    setEntryRate('');
-    setEntryWeight('');
+    if (!rate) return;
+    const totalWeight = entrySacks.reduce((s, sk) => s + sk.weight, 0);
+    setItems((prev) => [...prev, {
+      _key: crypto.randomUUID(),
+      vegetableId: entryVeg.id, vegetableName: entryVeg.name, emoji: entryVeg.emoji,
+      pricePerKg: rate, sacks: entrySacks, totalWeight, amount: rate * totalWeight,
+    }]);
+    setEntryVeg(null); setEntryVegSearch(''); setEntryRate('');
+    setEntrySacks([]); setEntrySackWeight('');
     setTimeout(() => vegSearchRef.current?.focus(), 0);
-  }, [entryVeg, entryRate, entryWeight]);
+  }, [entryVeg, entryRate, entrySacks]);
 
-  const removeItem = (key: string) =>
-    setItems((prev) => prev.filter((i) => i._key !== key));
+  const removeItem = (key: string) => setItems((prev) => prev.filter((i) => i._key !== key));
+  const removeSack = (id: string) => setEntrySacks((prev) => prev.filter((s) => s.id !== id));
 
-  // Keyboard nav for veg dropdown
+  // Customer dropdown keyboard nav
+  const handleCustomerKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setCustomerDropdownIdx(i => Math.min(i + 1, filteredCustomers.length - 1));
+      setShowCustomerDropdown(true);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setCustomerDropdownIdx(i => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter') {
+      if (showCustomerDropdown && filteredCustomers[customerDropdownIdx]) {
+        e.preventDefault();
+        pickCustomer(filteredCustomers[customerDropdownIdx]);
+      }
+    } else if (e.key === 'Escape') {
+      setShowCustomerDropdown(false);
+    }
+  };
+
+  // Veg dropdown keyboard nav
   const handleVegSearchKey = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -128,55 +178,45 @@ function NewBillForm() {
   };
 
   const handleRateKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === 'Tab') {
-      e.preventDefault();
-      weightRef.current?.focus();
-    }
+    if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); sackWeightRef.current?.focus(); }
   };
 
-  const handleWeightKey = (e: React.KeyboardEvent) => {
+  const handleSackWeightKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      commitItem();
+      if (entrySackWeight.trim() !== '') addSack();
+      else commitItem();
     }
   };
 
+  const coolieVal = parseFloat(coolie) || 0;
   const subtotal = items.reduce((s, i) => s + i.amount, 0);
   const previousBalance = customer?.pendingBalance ?? 0;
-  const totalDue = subtotal + previousBalance;
+  const totalDue = subtotal + coolieVal + previousBalance;
   const paid = parseFloat(amountPaid) || 0;
   const newBalance = totalDue - paid;
-
-  const validate = () => {
-    const errs: string[] = [];
-    if (!customerId) errs.push('Please select a customer.');
-    if (items.length === 0) errs.push('Add at least one vegetable item.');
-    return errs;
-  };
+  const entrySacksTotal = entrySacks.reduce((s, sk) => s + sk.weight, 0);
 
   const handleSave = async () => {
-    const errs = validate();
+    const errs: string[] = [];
+    if (!customerId) errs.push('Please select a customer.');
+    if (items.length === 0) errs.push('Add at least one item.');
     if (errs.length > 0) { setErrors(errs); return; }
     setErrors([]);
     setSaving(true);
     try {
-      const bill = addBill({
-        customerId,
-        customerName: customer!.name,
+      const bill = await addBill({
+        customerId, customerName: customer!.name,
+        customerNickname: customer!.nickname,
+        customerPrefix: customer!.prefix || 'திரு',
         date,
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         items: items.map(({ _key, ...rest }) => rest),
-        subtotal,
-        previousBalance,
-        totalDue,
-        amountPaid: paid,
-        newBalance,
+        subtotal, coolie: coolieVal, previousBalance, totalDue, amountPaid: paid, newBalance,
       });
       updateCustomer(customerId, { pendingBalance: newBalance });
       router.push(`/bills/${bill.id}`);
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
   if (!mounted || !customersLoaded || !vegsLoaded || !billsLoaded) {
@@ -189,11 +229,8 @@ function NewBillForm() {
 
   return (
     <div className="p-4 lg:p-8 space-y-5 max-w-3xl">
-      {/* Header */}
       <div className="flex items-center gap-3">
-        <Link href="/bills" className="text-gray-400 hover:text-gray-600 p-1">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
+        <Link href="/bills" className="text-gray-400 hover:text-gray-600 p-1"><ArrowLeft className="w-5 h-5" /></Link>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">New Bill</h1>
           <p className="text-gray-500 text-sm">Fill in details to create a bill</p>
@@ -204,8 +241,7 @@ function NewBillForm() {
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-1">
           {errors.map((e, i) => (
             <div key={i} className="flex items-start gap-2 text-red-700 text-sm">
-              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-              {e}
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />{e}
             </div>
           ))}
         </div>
@@ -216,31 +252,33 @@ function NewBillForm() {
         <h2 className="font-semibold text-gray-900">1. Customer</h2>
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="relative">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Customer <span className="text-red-500">*</span>
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Customer <span className="text-red-500">*</span></label>
             <div className="relative">
               <input
-                type="text"
-                value={customerSearch}
-                onChange={(e) => { setCustomerSearch(e.target.value); setCustomerId(''); setShowCustomerDropdown(true); }}
+                type="text" value={customerSearch}
+                onChange={(e) => { setCustomerSearch(e.target.value); setCustomerId(''); setShowCustomerDropdown(true); setCustomerDropdownIdx(0); }}
                 onFocus={() => setShowCustomerDropdown(true)}
-                placeholder="Type to search..."
-                className={clsx(
-                  'w-full border rounded-lg px-3 py-2.5 pr-9 focus:outline-none focus:ring-2 focus:ring-green-500',
-                  customer ? 'border-green-300 bg-green-50' : 'border-gray-200'
-                )}
+                onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 150)}
+                onKeyDown={handleCustomerKey}
+                placeholder="Type name, nickname or code..."
+                className={clsx('w-full border rounded-lg px-3 py-2.5 pr-9 focus:outline-none focus:ring-2 focus:ring-green-500',
+                  customer ? 'border-green-300 bg-green-50' : 'border-gray-200')}
               />
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             </div>
-            {showCustomerDropdown && customerSearch && filteredCustomers.length > 0 && (
-              <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                {filteredCustomers.map((c) => (
+            {showCustomerDropdown && filteredCustomers.length > 0 && (
+              <div ref={custDropdownRef} className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                {filteredCustomers.map((c, idx) => (
                   <button key={c.id} type="button"
-                    className="w-full text-left px-4 py-2.5 hover:bg-green-50 transition-colors border-b border-gray-50 last:border-0"
-                    onMouseDown={() => { setCustomerId(c.id); setCustomerSearch(c.name); setShowCustomerDropdown(false); }}
+                    onMouseDown={() => pickCustomer(c)}
+                    className={clsx('w-full text-left px-4 py-2.5 transition-colors border-b border-gray-50 last:border-0',
+                      idx === customerDropdownIdx ? 'bg-green-50' : 'hover:bg-green-50')}
                   >
-                    <div className="font-medium text-gray-900 text-sm">{c.name}</div>
+                    <div className="flex items-center gap-2">
+                      {c.code && <span className="text-xs font-mono bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{c.code}</span>}
+                      <span className="font-medium text-gray-900 text-sm">{c.name}</span>
+                      {c.nickname && <span className="text-gray-500 text-xs">({c.nickname})</span>}
+                    </div>
                     {c.phone && <div className="text-gray-400 text-xs">{c.phone}</div>}
                     {c.pendingBalance > 0 && <div className="text-red-500 text-xs">Balance: ₹{c.pendingBalance.toFixed(0)}</div>}
                   </button>
@@ -250,20 +288,16 @@ function NewBillForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-            <input
-              type="date" value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500" />
           </div>
         </div>
         {customer && (
-          <div className={clsx(
-            'rounded-lg px-4 py-3 flex items-center justify-between text-sm',
-            previousBalance > 0 ? 'bg-red-50 border border-red-100' : 'bg-green-50 border border-green-100'
-          )}>
+          <div className={clsx('rounded-lg px-4 py-3 flex items-center justify-between text-sm',
+            previousBalance > 0 ? 'bg-red-50 border border-red-100' : 'bg-green-50 border border-green-100')}>
             <span className={previousBalance > 0 ? 'text-red-700' : 'text-green-700'}>
-              Previous balance for <strong>{customer.name}</strong>
+              Previous balance for <strong>{customer.nickname || customer.name}</strong>
+              {customer.prefix && <span className="ml-1 text-xs opacity-70">({customer.prefix})</span>}
             </span>
             <span className={clsx('font-bold flex items-center gap-0.5', previousBalance > 0 ? 'text-red-700' : 'text-green-700')}>
               <IndianRupee className="w-3.5 h-3.5" />
@@ -278,7 +312,6 @@ function NewBillForm() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
         <h2 className="font-semibold text-gray-900">2. Items</h2>
 
-        {/* Added items table */}
         {items.length > 0 && (
           <div className="rounded-xl border border-gray-200 overflow-hidden">
             <table className="w-full text-sm">
@@ -286,26 +319,23 @@ function NewBillForm() {
                 <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 text-xs">
                   <th className="text-left px-3 py-2 font-medium">Vegetable</th>
                   <th className="text-right px-3 py-2 font-medium">Rate/kg</th>
-                  <th className="text-right px-3 py-2 font-medium">Weight</th>
+                  <th className="text-right px-3 py-2 font-medium">Sacks / Weight</th>
                   <th className="text-right px-3 py-2 font-medium">Amount</th>
-                  <th className="w-8"></th>
+                  <th className="w-8" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {items.map((item) => (
                   <tr key={item._key} className="hover:bg-gray-50">
-                    <td className="px-3 py-2.5 font-medium text-gray-900">
-                      {item.emoji} {item.vegetableName}
-                    </td>
+                    <td className="px-3 py-2.5 font-medium text-gray-900">{item.emoji} {item.vegetableName}</td>
                     <td className="px-3 py-2.5 text-right text-gray-600">₹{item.pricePerKg}</td>
-                    <td className="px-3 py-2.5 text-right text-gray-600">{item.weight} kg</td>
+                    <td className="px-3 py-2.5 text-right text-gray-600">
+                      <div>{item.totalWeight} kg</div>
+                      <div className="text-xs text-gray-400">{item.sacks.length} sack{item.sacks.length !== 1 ? 's' : ''} ({item.sacks.map(s => s.weight).join(', ')})</div>
+                    </td>
                     <td className="px-3 py-2.5 text-right font-semibold text-green-700">₹{item.amount.toFixed(2)}</td>
                     <td className="px-2 py-2.5 text-right">
-                      <button
-                        type="button"
-                        onClick={() => removeItem(item._key)}
-                        className="text-gray-300 hover:text-red-500 active:text-red-600 transition-colors"
-                      >
+                      <button type="button" onClick={() => removeItem(item._key)} className="text-gray-300 hover:text-red-500 transition-colors">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </td>
@@ -316,120 +346,101 @@ function NewBillForm() {
                 <tr className="border-t border-gray-200 bg-gray-50">
                   <td colSpan={3} className="px-3 py-2 text-right font-semibold text-gray-700 text-sm">Today&apos;s Total</td>
                   <td className="px-3 py-2 text-right font-bold text-green-700">₹{subtotal.toFixed(2)}</td>
-                  <td></td>
+                  <td />
                 </tr>
               </tfoot>
             </table>
           </div>
         )}
 
-        {/* Quick-entry row */}
+        {/* Entry row */}
         <div className="space-y-2">
           <p className="text-xs text-gray-400 hidden sm:flex items-center gap-1">
             <CornerDownLeft className="w-3 h-3" />
-            Type vegetable → Tab to rate → Tab to weight → <kbd className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-xs font-mono">Enter</kbd> to add
+            Search veg (or type code number) → Tab to rate → Enter each sack weight →
+            <kbd className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-xs font-mono">Enter</kbd> on empty weight to add item
           </p>
 
-          {/* Veg search — full width on all sizes */}
+          {/* Veg search */}
           <div className="relative">
             <input
-              ref={vegSearchRef}
-              type="text"
-              value={entryVegSearch}
+              ref={vegSearchRef} type="text" value={entryVegSearch}
               onChange={(e) => {
-                setEntryVegSearch(e.target.value);
-                setEntryVeg(null);
-                setEntryRate('');
-                setShowVegDropdown(true);
-                setVegDropdownIdx(0);
+                setEntryVegSearch(e.target.value); setEntryVeg(null); setEntryRate('');
+                setEntrySacks([]); setShowVegDropdown(true); setVegDropdownIdx(0);
               }}
               onKeyDown={handleVegSearchKey}
-              onFocus={() => { if (entryVegSearch) setShowVegDropdown(true); }}
+              onFocus={() => setShowVegDropdown(true)}
               onBlur={() => setTimeout(() => setShowVegDropdown(false), 150)}
-              placeholder="🥦 Search vegetable..."
-              className={clsx(
-                'w-full border rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500',
-                entryVeg ? 'border-green-400 bg-green-50' : 'border-gray-200'
-              )}
+              placeholder="🥦 Search vegetable or type code number..."
+              className={clsx('w-full border rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500',
+                entryVeg ? 'border-green-400 bg-green-50' : 'border-gray-200')}
               autoComplete="off"
             />
             {showVegDropdown && filteredVegs.length > 0 && (
-              <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+              <div ref={vegDropdownRef} className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
                 {filteredVegs.map((v, idx) => (
-                  <button
-                    key={v.id}
-                    type="button"
-                    onMouseDown={() => pickVeg(v)}
-                    className={clsx(
-                      'w-full text-left px-4 py-3 text-sm border-b border-gray-50 last:border-0 transition-colors',
-                      idx === vegDropdownIdx ? 'bg-green-50 text-green-900' : 'hover:bg-gray-50'
-                    )}
+                  <button key={v.id} type="button" onMouseDown={() => pickVeg(v)}
+                    className={clsx('w-full text-left px-4 py-2.5 text-sm border-b border-gray-50 last:border-0 transition-colors flex items-center gap-2',
+                      idx === vegDropdownIdx ? 'bg-green-50 text-green-900' : 'hover:bg-gray-50')}
                   >
-                    {v.emoji} {v.name}
-                    {v.englishName && <span className="ml-2 text-gray-500 text-xs text-italic">({v.englishName})</span>}
-                    <span className="ml-2 text-gray-400 text-xs">₹{v.defaultPrice}/kg</span>
+                    {v.code && <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded shrink-0">{v.code}</span>}
+                    <span>{v.emoji} {v.name}</span>
+                    {v.englishName && <span className="text-gray-500 text-xs">({v.englishName})</span>}
+                    <span className="ml-auto text-gray-400 text-xs shrink-0">₹{v.defaultPrice}/kg</span>
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Rate + Weight + Add — second row */}
+          {/* Rate + Sack weight */}
           <div className="flex gap-2">
-            {/* Rate */}
             <div className="relative flex-1">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">₹</span>
-              <input
-                ref={rateRef}
-                type="number"
-                min="0"
-                step="0.5"
-                value={entryRate}
-                onChange={(e) => setEntryRate(e.target.value)}
-                onKeyDown={handleRateKey}
+              <input ref={rateRef} type="number" min="0" step="0.5" value={entryRate}
+                onChange={(e) => setEntryRate(e.target.value)} onKeyDown={handleRateKey}
                 placeholder="Rate/kg"
-                className="w-full border border-gray-200 rounded-lg pl-7 pr-2 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
+                className="w-full border border-gray-200 rounded-lg pl-7 pr-2 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
             </div>
-
-            {/* Weight */}
             <div className="relative flex-1">
-              <input
-                ref={weightRef}
-                type="number"
-                min="0"
-                step="0.1"
-                value={entryWeight}
-                onChange={(e) => setEntryWeight(e.target.value)}
-                onKeyDown={handleWeightKey}
-                placeholder="Weight (kg)"
-                className="w-full border border-gray-200 rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
+              <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <input ref={sackWeightRef} type="number" min="0" step="0.1" value={entrySackWeight}
+                onChange={(e) => setEntrySackWeight(e.target.value)} onKeyDown={handleSackWeightKey}
+                placeholder="Sack kg (Enter to add)"
+                className={clsx('w-full border rounded-lg pl-9 pr-2 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500',
+                  entrySacks.length > 0 ? 'border-orange-300 bg-orange-50' : 'border-gray-200')} />
             </div>
-
-            {/* Add button */}
-            <button
-              type="button"
-              onClick={commitItem}
-              disabled={!entryVeg || !entryRate || !entryWeight}
-              className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 active:bg-green-800 disabled:bg-gray-200 disabled:text-gray-400 text-white px-4 py-3 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
-            >
+            <button type="button" onClick={commitItem}
+              disabled={!entryVeg || !entryRate || entrySacks.length === 0}
+              className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-200 disabled:text-gray-400 text-white px-4 py-3 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
               <CornerDownLeft className="w-4 h-4" />
-              <span className="hidden xs:inline">Add</span>
+              <span className="hidden sm:inline">Add</span>
             </button>
           </div>
 
-          {/* Live preview of current entry */}
-          {entryVeg && entryRate && entryWeight && (
+          {/* Sack chips */}
+          {entrySacks.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 px-1">
+              {entrySacks.map((sack, idx) => (
+                <span key={sack.id} className="inline-flex items-center gap-1 bg-orange-100 text-orange-800 text-xs px-2.5 py-1 rounded-full font-medium">
+                  <Package className="w-3 h-3" />
+                  மூடை {idx + 1}: {sack.weight} kg
+                  <button type="button" onClick={() => removeSack(sack.id)} className="ml-0.5 hover:text-red-600 transition-colors">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+              <span className="inline-flex items-center text-xs text-gray-500 px-1">= {entrySacksTotal} kg</span>
+            </div>
+          )}
+
+          {entryVeg && entryRate && entrySacks.length > 0 && (
             <div className="text-xs text-gray-500 px-1 flex items-center gap-1">
-              <span className="text-green-600 font-medium">
-                {entryVeg.emoji} {entryVeg.name}
-              </span>
-              — {entryWeight} kg × ₹{entryRate} =
-              <span className="font-semibold text-gray-800">
-                ₹{(parseFloat(entryWeight) * parseFloat(entryRate)).toFixed(2)}
-              </span>
-              <span className="text-gray-400 ml-1">↵ Enter to add</span>
+              <span className="text-green-600 font-medium">{entryVeg.emoji} {entryVeg.name}</span>
+              — {entrySacks.length} மூடை ({entrySacksTotal} kg) × ₹{entryRate} =
+              <span className="font-semibold text-gray-800">₹{(entrySacksTotal * parseFloat(entryRate)).toFixed(2)}</span>
+              <span className="text-gray-400 ml-1">↵ empty weight to add item</span>
             </div>
           )}
         </div>
@@ -438,92 +449,62 @@ function NewBillForm() {
       {/* Payment */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
         <h2 className="font-semibold text-gray-900">3. Payment</h2>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between text-gray-700">
-            <span>Today&apos;s Total</span>
-            <span className="font-semibold">₹{subtotal.toFixed(2)}</span>
-          </div>
-          {previousBalance !== 0 && (
-            <div className={clsx('flex justify-between', previousBalance > 0 ? 'text-red-600' : 'text-green-600')}>
-              <span>Previous Balance</span>
-              <span className="font-semibold">
-                {previousBalance > 0 ? '+' : '-'}₹{Math.abs(previousBalance).toFixed(2)}
-              </span>
-            </div>
-          )}
-          <div className="flex justify-between font-bold text-gray-900 border-t pt-2 text-base">
-            <span>Total Due</span>
-            <span>₹{totalDue.toFixed(2)}</span>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">கூலி / Labour Charge (₹)</label>
+          <div className="relative w-40">
+            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input type="number" min="0" step="1" value={coolie} onChange={(e) => setCoolie(e.target.value)}
+              placeholder="0"
+              className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500" />
           </div>
         </div>
-
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between text-gray-700"><span>Today&apos;s Total</span><span className="font-semibold">₹{subtotal.toFixed(2)}</span></div>
+          {coolieVal > 0 && <div className="flex justify-between text-gray-700"><span>கூலி</span><span className="font-semibold">₹{coolieVal.toFixed(2)}</span></div>}
+          {previousBalance !== 0 && (
+            <div className={clsx('flex justify-between', previousBalance > 0 ? 'text-red-600' : 'text-green-600')}>
+              <span>முன் பாக்கி</span>
+              <span className="font-semibold">{previousBalance > 0 ? '+' : '-'}₹{Math.abs(previousBalance).toFixed(2)}</span>
+            </div>
+          )}
+          <div className="flex justify-between font-bold text-gray-900 border-t pt-2 text-base"><span>நிகர பாக்கி</span><span>₹{totalDue.toFixed(2)}</span></div>
+        </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Amount Paid Now (₹)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">உடன் வரவு — Amount Paid Now (₹)</label>
           <div className="relative">
             <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="number" min="0" step="0.50"
-              value={amountPaid}
+            <input type="number" min="0" step="0.50" value={amountPaid}
               onChange={(e) => setAmountPaid(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
               placeholder="0.00"
-              className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
+              className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
           </div>
           {totalDue > 0 && (
             <div className="flex gap-2 mt-2 flex-wrap">
-              <button type="button" onClick={() => setAmountPaid(totalDue.toFixed(2))}
-                className="text-xs border border-green-200 text-green-700 px-3 py-1 rounded-full hover:bg-green-50 transition-colors">
-                Pay Full ₹{totalDue.toFixed(0)}
-              </button>
-              <button type="button" onClick={() => setAmountPaid(subtotal.toFixed(2))}
-                className="text-xs border border-gray-200 text-gray-600 px-3 py-1 rounded-full hover:bg-gray-50 transition-colors">
-                Today only ₹{subtotal.toFixed(0)}
-              </button>
-              <button type="button" onClick={() => setAmountPaid('0')}
-                className="text-xs border border-gray-200 text-gray-600 px-3 py-1 rounded-full hover:bg-gray-50 transition-colors">
-                No payment
-              </button>
+              <button type="button" onClick={() => setAmountPaid(totalDue.toFixed(2))} className="text-xs border border-green-200 text-green-700 px-3 py-1 rounded-full hover:bg-green-50 transition-colors">Pay Full ₹{totalDue.toFixed(0)}</button>
+              <button type="button" onClick={() => setAmountPaid(subtotal.toFixed(2))} className="text-xs border border-gray-200 text-gray-600 px-3 py-1 rounded-full hover:bg-gray-50 transition-colors">Today only ₹{subtotal.toFixed(0)}</button>
+              <button type="button" onClick={() => setAmountPaid('0')} className="text-xs border border-gray-200 text-gray-600 px-3 py-1 rounded-full hover:bg-gray-50 transition-colors">No payment</button>
             </div>
           )}
         </div>
-
-        <div className={clsx(
-          'rounded-xl p-4 flex items-center justify-between',
-          newBalance > 0 ? 'bg-red-50 border border-red-100' : newBalance < 0 ? 'bg-blue-50 border border-blue-100' : 'bg-green-50 border border-green-100'
-        )}>
+        <div className={clsx('rounded-xl p-4 flex items-center justify-between',
+          newBalance > 0 ? 'bg-red-50 border border-red-100' : newBalance < 0 ? 'bg-blue-50 border border-blue-100' : 'bg-green-50 border border-green-100')}>
           <div>
-            <div className="text-sm font-medium text-gray-700">
-              {newBalance > 0 ? 'New Balance Owed' : newBalance < 0 ? 'Credit to Customer' : 'Fully Settled'}
-            </div>
-            <div className="text-xs text-gray-400 mt-0.5">
-              {newBalance > 0 ? 'Customer owes this amount' : newBalance < 0 ? 'Overpaid — carry forward' : 'Nothing owed'}
-            </div>
+            <div className="text-sm font-medium text-gray-700">{newBalance > 0 ? 'பாக்கி (Balance Owed)' : newBalance < 0 ? 'மிகுதி வரவு (Credit)' : 'Fully Settled'}</div>
+            <div className="text-xs text-gray-400 mt-0.5">{newBalance > 0 ? 'Customer owes this amount' : newBalance < 0 ? 'Overpaid — carry forward' : 'Nothing owed'}</div>
           </div>
-          <div className={clsx(
-            'text-2xl font-bold flex items-center gap-0.5',
-            newBalance > 0 ? 'text-red-600' : newBalance < 0 ? 'text-blue-600' : 'text-green-600'
-          )}>
-            <IndianRupee className="w-5 h-5" />
-            {Math.abs(newBalance).toFixed(2)}
+          <div className={clsx('text-2xl font-bold flex items-center gap-0.5',
+            newBalance > 0 ? 'text-red-600' : newBalance < 0 ? 'text-blue-600' : 'text-green-600')}>
+            <IndianRupee className="w-5 h-5" />{Math.abs(newBalance).toFixed(2)}
           </div>
         </div>
       </div>
 
-      {/* Actions */}
       <div className="flex gap-3 pb-4">
-        <Link href="/bills"
-          className="flex-1 sm:flex-none border border-gray-200 text-gray-700 px-6 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors text-center">
-          Cancel
-        </Link>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-sm disabled:opacity-60"
-        >
-          <Save className="w-4 h-4" />
-          {saving ? 'Saving...' : 'Save Bill'}
+        <Link href="/bills" className="flex-1 sm:flex-none border border-gray-200 text-gray-700 px-6 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors text-center">Cancel</Link>
+        <button type="button" onClick={handleSave} disabled={saving}
+          className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-sm disabled:opacity-60">
+          <Save className="w-4 h-4" />{saving ? 'Saving...' : 'Save Bill'}
         </button>
       </div>
     </div>
@@ -532,11 +513,7 @@ function NewBillForm() {
 
 export default function NewBillPage() {
   return (
-    <Suspense fallback={
-      <div className="p-6 lg:p-8 flex items-center justify-center min-h-64">
-        <div className="text-gray-400 animate-pulse">Loading...</div>
-      </div>
-    }>
+    <Suspense fallback={<div className="p-6 lg:p-8 flex items-center justify-center min-h-64"><div className="text-gray-400 animate-pulse">Loading...</div></div>}>
       <NewBillForm />
     </Suspense>
   );

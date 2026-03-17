@@ -2,15 +2,17 @@
 
 import Link from 'next/link';
 import { Customer } from '@/lib/types';
-import { Phone, IndianRupee, ChevronRight } from 'lucide-react';
+import { Phone, IndianRupee, ChevronRight, Banknote, Check } from 'lucide-react';
 import clsx from 'clsx';
 
 interface CustomerCardProps {
   customer: Customer;
   billCount?: number;
+  onCollect?: (customer: Customer) => void;
+  collected?: boolean;
 }
 
-export default function CustomerCard({ customer, billCount }: CustomerCardProps) {
+export default function CustomerCard({ customer, billCount, onCollect, collected }: CustomerCardProps) {
   return (
     <Link
       href={`/customers/${customer.id}`}
@@ -23,8 +25,19 @@ export default function CustomerCard({ customer, billCount }: CustomerCardProps)
           </span>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-gray-900 text-base truncate">{customer.name}</div>
+          <div className="flex items-center gap-2">
+            {customer.code && (
+              <span className="text-xs font-mono bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded shrink-0">{customer.code}</span>
+            )}
+            <span className="font-semibold text-gray-900 text-base truncate">{customer.name}</span>
+            {customer.nickname && (
+              <span className="text-gray-500 text-sm shrink-0">({customer.nickname})</span>
+            )}
+          </div>
           <div className="flex items-center gap-3 mt-1 flex-wrap">
+            {customer.prefix && (
+              <span className="text-gray-400 text-xs">{customer.prefix}</span>
+            )}
             {customer.phone && (
               <span className="flex items-center gap-1 text-gray-500 text-sm">
                 <Phone className="w-3.5 h-3.5" />
@@ -36,21 +49,37 @@ export default function CustomerCard({ customer, billCount }: CustomerCardProps)
             )}
           </div>
         </div>
-        <div className="flex flex-col items-end gap-1 shrink-0">
-          <div
-            className={clsx(
-              'flex items-center gap-1 font-bold text-base',
-              customer.pendingBalance > 0 ? 'text-red-600' : 'text-green-600'
-            )}
-          >
-            <IndianRupee className="w-4 h-4" />
-            {Math.abs(customer.pendingBalance).toFixed(2)}
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="flex flex-col items-end gap-1">
+            <div
+              className={clsx(
+                'flex items-center gap-1 font-bold text-base',
+                customer.pendingBalance > 0 ? 'text-red-600' : 'text-green-600'
+              )}
+            >
+              <IndianRupee className="w-4 h-4" />
+              {Math.abs(customer.pendingBalance).toFixed(2)}
+            </div>
+            <div className="text-xs text-gray-400">
+              {customer.pendingBalance > 0 ? 'Balance owed' : customer.pendingBalance < 0 ? 'Credit' : 'Settled'}
+            </div>
           </div>
-          <div className="text-xs text-gray-400">
-            {customer.pendingBalance > 0 ? 'Balance owed' : customer.pendingBalance < 0 ? 'Credit' : 'Settled'}
-          </div>
+          {onCollect && customer.pendingBalance > 0 && (
+            <button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onCollect(customer); }}
+              className={clsx(
+                'p-2 rounded-lg transition-colors',
+                collected
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-green-50 hover:bg-green-100 text-green-700'
+              )}
+              title="Record collection"
+            >
+              {collected ? <Check className="w-4 h-4" /> : <Banknote className="w-4 h-4" />}
+            </button>
+          )}
+          <ChevronRight className="w-4 h-4 text-gray-400" />
         </div>
-        <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
       </div>
     </Link>
   );

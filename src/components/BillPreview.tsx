@@ -1,25 +1,35 @@
 'use client';
 
 import { Bill } from '@/lib/types';
-import { IndianRupee, Printer } from 'lucide-react';
+import { useSettings } from '@/lib/useSettings';
+import { Printer } from 'lucide-react';
 
 interface BillPreviewProps {
   bill: Bill;
   showPrintButton?: boolean;
 }
 
+function formatBillDate(dateStr: string) {
+  const [y, m, d] = dateStr.split('-');
+  return `${d}/${m}/${y}`;
+}
+
 export default function BillPreview({ bill, showPrintButton = true }: BillPreviewProps) {
-  const handlePrint = () => {
-    window.print();
-  };
+  const { settings } = useSettings();
+
+  const totalSacks = bill.items.reduce((s, i) => s + i.sacks.length, 0);
+  const totalWeight = bill.items.reduce((s, i) => s + i.totalWeight, 0);
+
+  const displayName = bill.customerNickname
+    ? `${bill.customerPrefix || ''} ${bill.customerNickname}`.trim()
+    : bill.customerName;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-      {/* Print button - hidden during print */}
+    <div className="bg-white">
       {showPrintButton && (
         <div className="flex justify-end p-4 border-b border-gray-100 print:hidden">
           <button
-            onClick={handlePrint}
+            onClick={() => window.print()}
             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
           >
             <Printer className="w-4 h-4" />
@@ -28,118 +38,235 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
         </div>
       )}
 
-      {/* Bill content */}
-      <div className="p-6 print:p-4" id="bill-print-area">
-        {/* Header */}
-        <div className="text-center mb-6 pb-4 border-b-2 border-gray-300">
-          <h1 className="text-2xl font-bold text-green-800">🌿 Kaikari Kadai</h1>
-          <p className="text-gray-500 text-sm mt-1">Fresh Vegetables • Daily Delivery</p>
-        </div>
+      {/* Bill container — print optimized */}
+      <div
+        id="bill-print-area"
+        className="p-4 print:p-0"
+        style={{ fontFamily: "'Noto Sans Tamil', 'Latha', Arial, sans-serif", fontSize: '13px' }}
+      >
+        <div className="border-2 border-gray-700 max-w-2xl mx-auto print:max-w-full print:border-black">
 
-        {/* Bill info */}
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <div className="text-sm text-gray-500">Customer</div>
-            <div className="font-bold text-lg text-gray-900">{bill.customerName}</div>
-          </div>
-          <div className="text-right">
-            <div className="text-sm text-gray-500">Bill No.</div>
-            <div className="font-bold text-lg text-gray-900">#{bill.billNumber}</div>
-            <div className="text-sm text-gray-500 mt-1">{new Date(bill.date).toLocaleDateString('en-IN', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric',
-            })}</div>
-          </div>
-        </div>
+          {/* ── Header ────────────────────────────────────── */}
+          <div className="border-b border-gray-700 print:border-black text-center px-3 py-2">
+            {settings.tagline && (
+              <div className="text-[11px] text-gray-600 mb-1">{settings.tagline}</div>
+            )}
+            <div className="flex items-center justify-between">
+              {/* Logo left */}
+              <div className="w-16 h-16 flex items-center justify-center shrink-0">
+                {settings.logoLeft ? (
+                  <img src={settings.logoLeft} alt="logo" className="w-16 h-16 object-contain" />
+                ) : (
+                  <div className="w-16 h-16 bg-gray-100 rounded" />
+                )}
+              </div>
 
-        {/* Items table */}
-        <div className="overflow-x-auto mb-6">
-          <table className="w-full text-sm">
+              {/* Company info */}
+              <div className="flex-1 text-center px-2">
+                <div className="text-3xl font-extrabold text-green-700 leading-tight">{settings.name}</div>
+                {settings.subtitle && (
+                  <div className="text-sm font-semibold text-gray-700 mt-0.5">{settings.subtitle}</div>
+                )}
+                {settings.address && (
+                  <div className="text-xs text-gray-600 mt-0.5">{settings.address}</div>
+                )}
+              </div>
+
+              {/* Logo right */}
+              <div className="w-16 h-16 flex items-center justify-center shrink-0">
+                {settings.logoRight ? (
+                  <img src={settings.logoRight} alt="logo" className="w-16 h-16 object-contain" />
+                ) : (
+                  <div className="w-16 h-16 bg-gray-100 rounded" />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Contact bar ───────────────────────────────── */}
+          {(settings.contact1Name || settings.contact2Name || settings.billTitle) && (
+            <div className="border-b border-gray-700 print:border-black grid grid-cols-3 items-center px-2 py-1.5">
+              <div className="text-xs">
+                {settings.contact1Name && <div className="font-semibold">{settings.contact1Name}</div>}
+                {settings.contact1Phone && <div className="text-gray-600">{settings.contact1Phone}</div>}
+              </div>
+              <div className="text-center font-bold text-sm">{settings.billTitle}</div>
+              <div className="text-right text-xs">
+                {settings.contact2Name && <div className="font-semibold">{settings.contact2Name}</div>}
+                {settings.contact2Phone && <div className="text-gray-600">{settings.contact2Phone}</div>}
+              </div>
+            </div>
+          )}
+
+          {/* ── Bill meta ─────────────────────────────────── */}
+          <div className="border-b border-gray-700 print:border-black flex justify-between items-center px-3 py-1.5">
+            <div>
+              <span className="font-semibold">எண் : </span>
+              <span className="text-red-600 font-bold text-base">{bill.billNumber}</span>
+            </div>
+            <div>
+              <span className="font-semibold">தேதி : </span>
+              <span className="font-medium">{formatBillDate(bill.date)}</span>
+            </div>
+          </div>
+          <div className="border-b border-gray-700 print:border-black px-3 py-1">
+            <span className="font-semibold">திரு  </span>
+            <span className="font-bold text-base">{displayName}</span>
+          </div>
+
+          {/* ── Items table ───────────────────────────────── */}
+          <table className="w-full border-collapse text-xs" style={{ tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '9%' }} />
+              <col style={{ width: '37%' }} />
+              <col style={{ width: '8%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '18%' }} />
+              <col style={{ width: '18%' }} />
+            </colgroup>
             <thead>
-              <tr className="bg-green-50 border-b border-green-200">
-                <th className="text-left py-2 px-3 font-semibold text-green-800">Item</th>
-                <th className="text-right py-2 px-3 font-semibold text-green-800">Rate/kg</th>
-                <th className="text-right py-2 px-3 font-semibold text-green-800">Weight (kg)</th>
-                <th className="text-right py-2 px-3 font-semibold text-green-800">Amount</th>
+              <tr className="bg-gray-50 border-b border-gray-700 print:border-black">
+                {['விலை', 'விபரம்', 'மூடை', 'எடை', 'பற்று', 'வரவு'].map((h, i) => (
+                  <th
+                    key={h}
+                    className={`py-1.5 px-1 font-bold border-gray-700 print:border-black ${i < 5 ? 'border-r' : ''} ${i === 0 || i >= 2 ? 'text-center' : 'text-left'}`}
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+
+            <tbody>
               {bill.items.map((item, idx) => (
-                <tr key={idx} className="hover:bg-gray-50">
-                  <td className="py-2.5 px-3">
-                    <span className="mr-1">{item.emoji}</span>
-                    <span className="font-medium">{item.vegetableName}</span>
+                <tr key={idx} className="border-b border-gray-300 print:border-gray-400 align-top">
+                  {/* விலை */}
+                  <td className="py-1.5 px-1 text-right border-r border-gray-400">
+                    {item.pricePerKg.toFixed(2)}
                   </td>
-                  <td className="py-2.5 px-3 text-right">
-                    <span className="flex items-center justify-end gap-0.5">
-                      <IndianRupee className="w-3 h-3" />
-                      {item.pricePerKg.toFixed(0)}
-                    </span>
+                  {/* விபரம் */}
+                  <td className="py-1.5 px-2 border-r border-gray-400">
+                    <div className="font-semibold">{item.vegetableName}</div>
+                    {item.sacks.length > 0 && (
+                      <div className="text-red-600 text-[11px] mt-0.5">
+                        {item.sacks.map(s => s.weight).join(',')}
+                      </div>
+                    )}
+                    <div className="text-red-600 text-[11px]">மூடை : {item.sacks.length}</div>
                   </td>
-                  <td className="py-2.5 px-3 text-right font-medium">{item.weight.toFixed(2)}</td>
-                  <td className="py-2.5 px-3 text-right font-semibold">
-                    <span className="flex items-center justify-end gap-0.5">
-                      <IndianRupee className="w-3 h-3" />
-                      {item.amount.toFixed(2)}
-                    </span>
+                  {/* மூடை */}
+                  <td className="py-1.5 px-1 text-center border-r border-gray-400">
+                    {item.sacks.length}
                   </td>
+                  {/* எடை */}
+                  <td className="py-1.5 px-1 text-right border-r border-gray-400">
+                    {item.totalWeight}
+                  </td>
+                  {/* பற்று */}
+                  <td className="py-1.5 px-1 text-right border-r border-gray-400">
+                    {item.amount.toFixed(2)}
+                  </td>
+                  {/* வரவு */}
+                  <td className="py-1.5 px-1 text-right" />
+                </tr>
+              ))}
+
+              {/* Empty rows to fill space */}
+              {Array.from({ length: Math.max(0, 6 - bill.items.length) }).map((_, i) => (
+                <tr key={`empty-${i}`} className="border-b border-gray-200 h-7">
+                  {[0,1,2,3,4,5].map(ci => (
+                    <td key={ci} className={`px-1 ${ci < 5 ? 'border-r border-gray-300' : ''}`}>&nbsp;</td>
+                  ))}
                 </tr>
               ))}
             </tbody>
+
+            <tfoot>
+              {/* Total row */}
+              <tr className="border-t-2 border-gray-600 print:border-black font-semibold">
+                <td className="py-1.5 px-1 border-r border-gray-400" />
+                <td className="py-1.5 px-2 border-r border-gray-400" />
+                <td className="py-1.5 px-1 text-center border-r border-gray-400">{totalSacks}</td>
+                <td className="py-1.5 px-1 text-right border-r border-gray-400">{totalWeight}</td>
+                <td className="py-1.5 px-1 text-right border-r border-gray-400">{bill.subtotal.toFixed(2)}</td>
+                <td className="py-1.5 px-1" />
+              </tr>
+
+              {/* முன் பாக்கி */}
+              {bill.previousBalance > 0 && (
+                <tr className="border-t border-gray-400">
+                  <td className="py-1.5 px-1 border-r border-gray-400" />
+                  <td className="py-1.5 px-2 border-r border-gray-400 font-semibold">முன் பாக்கி பற்று</td>
+                  <td className="border-r border-gray-400" />
+                  <td className="border-r border-gray-400" />
+                  <td className="py-1.5 px-1 text-right border-r border-gray-400">{bill.previousBalance.toFixed(2)}</td>
+                  <td />
+                </tr>
+              )}
+
+              {/* கூலி */}
+              {bill.coolie > 0 && (
+                <tr className="border-t border-gray-400">
+                  <td className="py-1.5 px-1 border-r border-gray-400" />
+                  <td className="py-1.5 px-2 border-r border-gray-400 font-semibold">கூலி</td>
+                  <td className="border-r border-gray-400" />
+                  <td className="border-r border-gray-400" />
+                  <td className="py-1.5 px-1 text-right border-r border-gray-400">{bill.coolie.toFixed(2)}</td>
+                  <td />
+                </tr>
+              )}
+
+              {/* நிகர பாக்கி */}
+              <tr className="border-t border-gray-500">
+                <td className="py-2 px-1 border-r border-gray-400" />
+                <td className="py-2 px-2 border-r border-gray-400">
+                  <span className="text-red-600 font-extrabold text-sm">நிகர பாக்கி</span>
+                </td>
+                <td className="border-r border-gray-400" />
+                <td className="border-r border-gray-400" />
+                <td className="py-2 px-1 text-right border-r border-gray-400">
+                  <span className="text-red-600 font-extrabold text-sm">{bill.totalDue.toFixed(2)}</span>
+                </td>
+                <td />
+              </tr>
+
+              {/* உடன் வரவு */}
+              <tr className="border-t border-gray-400">
+                <td className="py-1.5 px-1 border-r border-gray-400" />
+                <td className="py-1.5 px-2 border-r border-gray-400 font-semibold">உடன் வரவு</td>
+                <td className="border-r border-gray-400" />
+                <td className="border-r border-gray-400" />
+                <td className="border-r border-gray-400" />
+                <td className="py-1.5 px-1 text-right font-semibold">
+                  {bill.amountPaid > 0 ? bill.amountPaid.toFixed(2) : ''}
+                </td>
+              </tr>
+
+              {/* பாக்கி / credit */}
+              {bill.newBalance !== 0 && (
+                <tr className="border-t border-gray-400">
+                  <td className="py-1.5 px-1 border-r border-gray-400" />
+                  <td className="py-1.5 px-2 border-r border-gray-400 font-semibold">
+                    {bill.newBalance > 0 ? 'பாக்கி' : 'மிகுதி வரவு'}
+                  </td>
+                  <td className="border-r border-gray-400" />
+                  <td className="border-r border-gray-400" />
+                  <td className={`py-1.5 px-1 text-right border-r border-gray-400 font-bold ${bill.newBalance > 0 ? 'text-red-600' : 'text-green-700'}`}>
+                    {bill.newBalance > 0 ? bill.newBalance.toFixed(2) : ''}
+                  </td>
+                  <td className={`py-1.5 px-1 text-right font-bold ${bill.newBalance < 0 ? 'text-green-700' : ''}`}>
+                    {bill.newBalance < 0 ? Math.abs(bill.newBalance).toFixed(2) : ''}
+                  </td>
+                </tr>
+              )}
+            </tfoot>
           </table>
+
         </div>
 
-        {/* Summary */}
-        <div className="border-t-2 border-gray-300 pt-4">
-          <div className="sm:ml-auto sm:max-w-xs space-y-2">
-            <div className="flex justify-between text-gray-700">
-              <span>Today&apos;s Total</span>
-              <span className="flex items-center gap-0.5 font-medium">
-                <IndianRupee className="w-3.5 h-3.5" />
-                {bill.subtotal.toFixed(2)}
-              </span>
-            </div>
-            {bill.previousBalance > 0 && (
-              <div className="flex justify-between text-red-600">
-                <span>Previous Balance</span>
-                <span className="flex items-center gap-0.5 font-medium">
-                  + <IndianRupee className="w-3.5 h-3.5" />
-                  {bill.previousBalance.toFixed(2)}
-                </span>
-              </div>
-            )}
-            <div className="flex justify-between font-bold text-gray-900 border-t pt-2">
-              <span>Total Due</span>
-              <span className="flex items-center gap-0.5">
-                <IndianRupee className="w-3.5 h-3.5" />
-                {bill.totalDue.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between text-green-700">
-              <span>Amount Paid</span>
-              <span className="flex items-center gap-0.5 font-medium">
-                - <IndianRupee className="w-3.5 h-3.5" />
-                {bill.amountPaid.toFixed(2)}
-              </span>
-            </div>
-            <div
-              className={`flex justify-between font-bold text-lg border-t pt-2 ${
-                bill.newBalance > 0 ? 'text-red-600' : 'text-green-700'
-              }`}
-            >
-              <span>{bill.newBalance > 0 ? 'Balance Owed' : 'Credit'}</span>
-              <span className="flex items-center gap-0.5">
-                <IndianRupee className="w-4 h-4" />
-                {Math.abs(bill.newBalance).toFixed(2)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-6 pt-4 border-t border-gray-200 text-center text-gray-400 text-xs print:block">
-          Thank you for your business!
+        {/* Bill ID footer */}
+        <div className="text-right text-[10px] text-gray-300 mt-1 pr-1 print:text-gray-300">
+          {bill.id}
         </div>
       </div>
     </div>
