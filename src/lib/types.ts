@@ -81,3 +81,13 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
 };
 
 export const CUSTOMER_PREFIXES = ['திரு', 'திருமதி', 'செல்வி', 'செல்வன்', ''];
+
+export interface Collection {
+  id: string;
+  customerId: string;
+  customerName: string;
+  amount: number;
+  date: string;
+  note: string;
+  createdAt: string;
+}

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCustomers, useBills } from '@/lib/storage';
 import { ArrowLeft, Phone, IndianRupee, FileText, PlusCircle, Edit2, Trash2, Check, X, Banknote } from 'lucide-react';
-import { Bill, CUSTOMER_PREFIXES } from '@/lib/types';
+import { Bill, Collection, CUSTOMER_PREFIXES } from '@/lib/types';
 import clsx from 'clsx';
 
 export default function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -20,8 +20,18 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
   const [collectMode, setCollectMode] = useState(false);
   const [collectAmount, setCollectAmount] = useState('');
   const [collectDone, setCollectDone] = useState(false);
+  const [collections, setCollections] = useState<Collection[]>([]);
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (id) {
+      fetch(`/api/collections?customerId=${id}`)
+        .then(r => r.json())
+        .then(setCollections)
+        .catch(() => {});
+    }
+  }, [id]);
 
   const customer = customers.find((c) => c.id === id);
   const customerBills = bills.filter((b: Bill) => b.customerId === id)
@@ -79,6 +89,23 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
     const amount = parseFloat(collectAmount);
     if (isNaN(amount) || amount <= 0) return;
     updateCustomer(id, { pendingBalance: customer.pendingBalance - amount });
+    const d = new Date();
+    const localDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const newCollection: Collection = {
+      id: crypto.randomUUID(),
+      customerId: id,
+      customerName: customer.name,
+      amount,
+      date: localDate,
+      note: '',
+      createdAt: new Date().toISOString(),
+    };
+    fetch('/api/collections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newCollection),
+    });
+    setCollections(prev => [newCollection, ...prev]);
     setCollectMode(false);
     setCollectAmount('');
     setCollectDone(true);
@@ -160,7 +187,6 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     {customer.code && <span className="text-xs font-mono bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{customer.code}</span>}
-                    {customer.prefix && <span className="text-sm text-gray-500">{customer.prefix}</span>}
                     <h1 className="text-xl font-bold text-gray-900">{customer.name}</h1>
                     {customer.nickname && <span className="text-base text-gray-500">({customer.nickname})</span>}
                   </div>
@@ -342,6 +368,31 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
           </div>
         )}
       </div>
+
+      {/* Collection history */}
+      {collections.length > 0 && (
+        <div>
+          <h2 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <Banknote className="w-4 h-4" />
+            Collection History
+          </h2>
+          <div className="space-y-2">
+            {collections.map((c: Collection) => (
+              <div key={c.id} className="flex items-center justify-between bg-white rounded-xl border border-gray-100 px-4 py-3">
+                <div>
+                  <div className="font-medium text-gray-900 text-sm">Amount Collected</div>
+                  <div className="text-gray-400 text-xs">
+                    {new Date(c.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </div>
+                </div>
+                <div className="font-semibold text-green-700 flex items-center gap-0.5">
+                  <IndianRupee className="w-3.5 h-3.5" />{c.amount.toFixed(2)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Summary if multiple bills */}
       {customerBills.length > 1 && (

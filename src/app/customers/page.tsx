@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useCustomers, useBills } from '@/lib/storage';
 import CustomerCard from '@/components/CustomerCard';
 import { Search, UserPlus, X, IndianRupee, Banknote } from 'lucide-react';
-import { Customer, CUSTOMER_PREFIXES } from '@/lib/types';
+import { Collection, Customer, CUSTOMER_PREFIXES } from '@/lib/types';
 
 export default function CustomersPage() {
   const { customers, addCustomer, updateCustomer, loaded } = useCustomers();
@@ -59,6 +59,22 @@ export default function CustomersPage() {
     const amount = parseFloat(collectAmount);
     if (isNaN(amount) || amount <= 0) return;
     updateCustomer(collectTarget.id, { pendingBalance: collectTarget.pendingBalance - amount });
+    const d = new Date();
+    const localDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const newCollection: Collection = {
+      id: crypto.randomUUID(),
+      customerId: collectTarget.id,
+      customerName: collectTarget.name,
+      amount,
+      date: localDate,
+      note: '',
+      createdAt: new Date().toISOString(),
+    };
+    fetch('/api/collections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newCollection),
+    });
     setCollectDone(collectTarget.id);
     setCollectTarget(null);
     setCollectAmount('');

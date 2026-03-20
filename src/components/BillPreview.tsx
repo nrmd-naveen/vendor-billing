@@ -2,7 +2,8 @@
 
 import { Bill } from '@/lib/types';
 import { useSettings } from '@/lib/useSettings';
-import { Printer } from 'lucide-react';
+import { Printer, Download } from 'lucide-react';
+import { toPng } from 'html-to-image';
 
 interface BillPreviewProps {
   bill: Bill;
@@ -20,14 +21,29 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
   const totalSacks = bill.items.reduce((s, i) => s + i.sacks.length, 0);
   const totalWeight = bill.items.reduce((s, i) => s + i.totalWeight, 0);
 
-  const displayName = bill.customerNickname
-    ? `${bill.customerPrefix || ''} ${bill.customerNickname}`.trim()
-    : bill.customerName;
+  const displayName = bill.customerNickname || bill.customerName;
+
+  const handleDownload = async () => {
+    const el = document.getElementById('bill-print-area');
+    if (!el) return;
+    const dataUrl = await toPng(el, { cacheBust: true, backgroundColor: '#ffffff' });
+    const a = document.createElement('a');
+    a.download = `bill-${bill.billNumber}.png`;
+    a.href = dataUrl;
+    a.click();
+  };
 
   return (
     <div className="bg-white">
       {showPrintButton && (
-        <div className="flex justify-end p-4 border-b border-gray-100 print:hidden">
+        <div className="flex justify-end gap-2 p-4 border-b border-gray-100 print:hidden">
+          <button
+            onClick={handleDownload}
+            className="flex items-center gap-2 bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Save Photo
+          </button>
           <button
             onClick={() => window.print()}
             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
@@ -110,7 +126,6 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
             </div>
           </div>
           <div className="border-b border-gray-700 print:border-black px-3 py-1">
-            <span className="font-semibold">திரு  </span>
             <span className="font-bold text-base">{displayName}</span>
           </div>
 

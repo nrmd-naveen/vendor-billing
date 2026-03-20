@@ -3,15 +3,28 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useCustomers, useBills } from '@/lib/storage';
-import { Users, FileText, IndianRupee, TrendingUp, PlusCircle, ArrowRight } from 'lucide-react';
-import { Bill, Customer } from '@/lib/types';
+import { Users, FileText, IndianRupee, TrendingUp, PlusCircle, ArrowRight, Banknote } from 'lucide-react';
+import { Bill, Collection, Customer } from '@/lib/types';
 
 export default function DashboardPage() {
   const { customers, loaded: customersLoaded } = useCustomers();
   const { bills, loaded: billsLoaded } = useBills();
   const [mounted, setMounted] = useState(false);
+  const [todaysCollections, setTodaysCollections] = useState(0);
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    fetch('/api/collections')
+      .then(r => r.json())
+      .then((cols: Collection[]) => {
+        const d = new Date();
+        const today = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        const sum = cols.filter(c => c.date === today).reduce((s, c) => s + c.amount, 0);
+        setTodaysCollections(sum);
+      })
+      .catch(() => {});
+  }, []);
 
   if (!mounted || !customersLoaded || !billsLoaded) {
     return (
@@ -21,13 +34,13 @@ export default function DashboardPage() {
     );
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  const d = new Date();
+  const today = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const thisMonth = today.slice(0, 7);
   const todaysBills = bills.filter((b: Bill) => b.date === today);
   const todaysTotal = todaysBills.reduce((sum: number, b: Bill) => sum + b.subtotal, 0);
   const totalPending = customers.reduce((sum: number, c: Customer) => sum + Math.max(0, c.pendingBalance), 0);
-  const totalBillsThisMonth = bills.filter((b: Bill) =>
-    b.date.startsWith(new Date().toISOString().slice(0, 7))
-  ).length;
+  const totalBillsThisMonth = bills.filter((b: Bill) => b.date.startsWith(thisMonth)).length;
 
   const recentBills = [...bills]
     .sort((a: Bill, b: Bill) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -63,7 +76,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
@@ -116,6 +129,20 @@ export default function DashboardPage() {
             {totalPending.toFixed(0)}
           </div>
           <div className="text-gray-400 text-xs mt-1">Pending balances</div>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+              <Banknote className="w-5 h-5 text-green-600" />
+            </div>
+            <span className="text-gray-500 text-sm">Collected Today</span>
+          </div>
+          <div className="text-2xl font-bold text-green-700 flex items-center gap-0.5">
+            <IndianRupee className="w-5 h-5" />
+            {todaysCollections.toFixed(0)}
+          </div>
+          <div className="text-gray-400 text-xs mt-1">Cash received</div>
         </div>
       </div>
 

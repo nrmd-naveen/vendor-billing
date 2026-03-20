@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import { DEFAULT_VEGETABLES } from './defaults';
 import { DEFAULT_COMPANY_SETTINGS } from './types';
-import type { Customer, Vegetable, Bill, BillItem, Sack, CompanySettings } from './types';
+import type { Customer, Vegetable, Bill, BillItem, Sack, CompanySettings, Collection } from './types';
 
 const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'chark.db');
 
@@ -80,6 +80,16 @@ function initDb(db: Database.Database) {
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS collections (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL,
+      customer_name TEXT NOT NULL,
+      amount REAL NOT NULL,
+      date TEXT NOT NULL,
+      note TEXT DEFAULT '',
+      created_at TEXT NOT NULL
     );
 
     INSERT OR IGNORE INTO settings (key, value) VALUES ('bill_counter', '1000');
@@ -297,6 +307,12 @@ export function updateCustomer(id: string, data: Partial<Customer>): void {
   }
 }
 
+export function getCustomerById(id: string): Customer | null {
+  const db = getDb();
+  const row = db.prepare('SELECT * FROM customers WHERE id = ?').get(id) as DBCustomer | undefined;
+  return row ? mapCustomer(row) : null;
+}
+
 export function deleteCustomer(id: string): void {
   getDb().prepare('DELETE FROM customers WHERE id = ?').run(id);
 }
@@ -391,4 +407,36 @@ export function createBill(data: Omit<Bill, 'billNumber'> & { billNumber?: numbe
 
 export function deleteBill(id: string): void {
   getDb().prepare('DELETE FROM bills WHERE id = ?').run(id);
+}
+
+// ── Collections CRUD ──────────────────────────────────────────────────────────
+
+interface DBCollection {
+  id: string; customer_id: string; customer_name: string;
+  amount: number; date: string; note: string; created_at: string;
+}
+
+function mapCollection(row: DBCollection): Collection {
+  return {
+    id: row.id, customerId: row.customer_id, customerName: row.customer_name,
+    amount: row.amount, date: row.date, note: row.note || '', createdAt: row.created_at,
+  };
+}
+
+export function createCollection(c: Collection): Collection {
+  const db = getDb();
+  db.prepare(
+    'INSERT INTO collections (id, customer_id, customer_name, amount, date, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run(c.id, c.customerId, c.customerName, c.amount, c.date, c.note || '', c.createdAt);
+  return c;
+}
+
+export function getCollectionsByCustomer(customerId: string): Collection[] {
+  const db = getDb();
+  return (db.prepare('SELECT * FROM collections WHERE customer_id = ? ORDER BY created_at DESC').all(customerId) as DBCollection[]).map(mapCollection);
+}
+
+export function getAllCollections(): Collection[] {
+  const db = getDb();
+  return (db.prepare('SELECT * FROM collections ORDER BY created_at DESC').all() as DBCollection[]).map(mapCollection);
 }

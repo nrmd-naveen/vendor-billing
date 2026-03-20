@@ -35,9 +35,6 @@ export default function CustomerCard({ customer, billCount, onCollect, collected
             )}
           </div>
           <div className="flex items-center gap-3 mt-1 flex-wrap">
-            {customer.prefix && (
-              <span className="text-gray-400 text-xs">{customer.prefix}</span>
-            )}
             {customer.phone && (
               <span className="flex items-center gap-1 text-gray-500 text-sm">
                 <Phone className="w-3.5 h-3.5" />
@@ -68,7 +65,7 @@ export default function CustomerCard({ customer, billCount, onCollect, collected
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); onCollect(customer); }}
               className={clsx(
-                'p-2 rounded-lg transition-colors',
+                'p-3 rounded-lg transition-colors',
                 collected
                   ? 'bg-green-100 text-green-700'
                   : 'bg-green-50 hover:bg-green-100 text-green-700'
