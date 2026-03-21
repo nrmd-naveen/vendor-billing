@@ -4,7 +4,7 @@ import { DEFAULT_VEGETABLES } from './defaults';
 import { DEFAULT_COMPANY_SETTINGS } from './types';
 import type { Customer, Vegetable, Bill, BillItem, Sack, CompanySettings, Collection } from './types';
 
-const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'chark.db');
+const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'database.db');
 
 let _db: Database.Database | null = null;
 
@@ -16,6 +16,17 @@ function getDb(): Database.Database {
     initDb(_db);
   }
   return _db;
+}
+
+export function getDbPath(): string {
+  return DB_PATH;
+}
+
+export function closeDb(): void {
+  if (_db) {
+    _db.close();
+    _db = null;
+  }
 }
 
 function initDb(db: Database.Database) {

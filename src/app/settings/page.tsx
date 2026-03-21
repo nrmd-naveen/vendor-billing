@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSettings } from '@/lib/useSettings';
 import { CompanySettings } from '@/lib/types';
-import { Save, Upload, X, Settings as SettingsIcon, Building2 } from 'lucide-react';
+import { Save, Upload, X, Settings as SettingsIcon, Building2, Download, DatabaseBackup, AlertTriangle } from 'lucide-react';
 
 function ImageUpload({
   label, value, onChange,
@@ -60,6 +60,36 @@ export default function SettingsPage() {
   const [form, setForm] = useState<CompanySettings>(settings);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [dbStatus, setDbStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [dbError, setDbError] = useState('');
+  const dbInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDownloadDb = () => {
+    window.location.href = '/api/db';
+  };
+
+  const handleUploadDb = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setDbStatus('uploading');
+    setDbError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/db', { method: 'POST', body: formData });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error || 'Upload failed');
+      }
+      setDbStatus('success');
+      setTimeout(() => { setDbStatus('idle'); window.location.reload(); }, 1500);
+    } catch (err) {
+      setDbError(err instanceof Error ? err.message : 'Upload failed');
+      setDbStatus('error');
+    } finally {
+      e.target.value = '';
+    }
+  };
 
   useEffect(() => {
     if (loaded) setForm(settings);
@@ -158,6 +188,46 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Database Backup */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+        <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+          <DatabaseBackup className="w-4 h-4" /> Database Backup
+        </h2>
+        <p className="text-sm text-gray-500">
+          Download a copy of your entire database or restore from a previous backup.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={handleDownloadDb}
+            className="flex items-center gap-2 border border-green-200 text-green-700 bg-green-50 hover:bg-green-100 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Download Database
+          </button>
+          <button
+            type="button"
+            onClick={() => dbInputRef.current?.click()}
+            disabled={dbStatus === 'uploading'}
+            className="flex items-center gap-2 border border-orange-200 text-orange-700 bg-orange-50 hover:bg-orange-100 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-60"
+          >
+            <Upload className="w-4 h-4" />
+            {dbStatus === 'uploading' ? 'Restoring...' : dbStatus === 'success' ? '✓ Restored!' : 'Restore from Backup'}
+          </button>
+          <input ref={dbInputRef} type="file" accept=".db" className="hidden" onChange={handleUploadDb} />
+        </div>
+        {dbStatus === 'error' && (
+          <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            {dbError}
+          </div>
+        )}
+        <p className="text-xs text-gray-400 flex items-center gap-1">
+          <AlertTriangle className="w-3 h-3" />
+          Restoring will replace all current data. A backup is saved automatically before restore.
+        </p>
       </div>
 
       {/* Save */}

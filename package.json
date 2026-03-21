@@ -1,7 +1,9 @@
 {
-  "name": "chark",
+  "name": "database",
   "version": "0.1.0",
   "private": true,
+  "author": "nrmd-naveen <https://github.com/nrmd-naveen>",
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

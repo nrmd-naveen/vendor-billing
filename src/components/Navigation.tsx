@@ -120,6 +120,14 @@ export default function Navigation() {
             <span>Settings</span>
           </Link>
           <div className="px-4 pt-2 text-green-500 text-[10px]">Data saved on this device</div>
+          <a
+            href="https://github.com/nrmd-naveen"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 pt-1 text-green-600 text-[9px] hover:text-green-400 transition-colors"
+          >
+            © nrmd-naveen
+          </a>
         </div>
       </aside>
     </>
