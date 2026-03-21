@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, FileText, Leaf, PlusCircle, BarChart2, Settings, Banknote } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Leaf, PlusCircle, Settings, Banknote } from 'lucide-react';
 import clsx from 'clsx';
 import { useSettings } from '@/lib/useSettings';
 
@@ -13,7 +13,6 @@ const mainNav = [
   { href: '/bills/new', label: 'New Bill', icon: PlusCircle, highlight: true },
   { href: '/collections', label: 'Collections', icon: Banknote },
   { href: '/vegetables', label: 'Vegetables', icon: Leaf },
-  { href: '/reports', label: 'Reports', icon: BarChart2 },
 ];
 
 export default function Navigation() {

@@ -28,6 +28,7 @@ function initDb(db: Database.Database) {
       code INTEGER,
       prefix TEXT DEFAULT 'திரு',
       pending_balance REAL DEFAULT 0,
+      photo TEXT,
       created_at TEXT NOT NULL
     );
 
@@ -124,6 +125,7 @@ function runMigrations(db: Database.Database) {
   if (!custCols.includes('nickname')) db.exec("ALTER TABLE customers ADD COLUMN nickname TEXT DEFAULT ''");
   if (!custCols.includes('code')) db.exec('ALTER TABLE customers ADD COLUMN code INTEGER');
   if (!custCols.includes('prefix')) db.exec("ALTER TABLE customers ADD COLUMN prefix TEXT DEFAULT 'திரு'");
+  if (!custCols.includes('photo')) db.exec('ALTER TABLE customers ADD COLUMN photo TEXT');
 
   // vegetables table migrations
   const vegCols = (db.prepare('PRAGMA table_info(vegetables)').all() as { name: string }[]).map(c => c.name);
@@ -206,7 +208,7 @@ export function saveCompanySettings(s: CompanySettings): void {
 interface DBCustomer {
   id: string; name: string; phone: string | null;
   nickname: string | null; code: number | null; prefix: string | null;
-  pending_balance: number; created_at: string;
+  pending_balance: number; photo: string | null; created_at: string;
 }
 
 interface DBVegetable {
@@ -239,6 +241,7 @@ function mapCustomer(row: DBCustomer): Customer {
     code: row.code ?? undefined,
     prefix: row.prefix || 'திரு',
     pendingBalance: row.pending_balance,
+    photo: row.photo || undefined,
     createdAt: row.created_at,
   };
 }
@@ -290,8 +293,8 @@ export function getAllCustomers(): Customer[] {
 export function createCustomer(c: Customer): Customer {
   const db = getDb();
   db.prepare(
-    'INSERT INTO customers (id, name, phone, nickname, code, prefix, pending_balance, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(c.id, c.name, c.phone ?? null, c.nickname ?? '', c.code ?? null, c.prefix ?? 'திரு', c.pendingBalance, c.createdAt);
+    'INSERT INTO customers (id, name, phone, nickname, code, prefix, pending_balance, photo, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(c.id, c.name, c.phone ?? null, c.nickname ?? '', c.code ?? null, c.prefix ?? 'திரு', c.pendingBalance, c.photo ?? null, c.createdAt);
   return c;
 }
 
@@ -300,7 +303,7 @@ export function updateCustomer(id: string, data: Partial<Customer>): void {
   const map: Record<string, unknown> = {
     name: data.name, phone: data.phone ?? null, nickname: data.nickname ?? null,
     code: data.code ?? null, prefix: data.prefix ?? null,
-    pending_balance: data.pendingBalance,
+    pending_balance: data.pendingBalance, photo: data.photo,
   };
   for (const [col, val] of Object.entries(map)) {
     if (val !== undefined) db.prepare(`UPDATE customers SET ${col} = ? WHERE id = ?`).run(val, id);

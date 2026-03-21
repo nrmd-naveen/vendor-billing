@@ -10,20 +10,39 @@ interface CustomerCardProps {
   billCount?: number;
   onCollect?: (customer: Customer) => void;
   collected?: boolean;
+  selected?: boolean;
+  onSelect?: (id: string, selected: boolean) => void;
+  selectionMode?: boolean;
 }
 
-export default function CustomerCard({ customer, billCount, onCollect, collected }: CustomerCardProps) {
+export default function CustomerCard({ customer, billCount, onCollect, collected, selected, onSelect, selectionMode }: CustomerCardProps) {
   return (
     <Link
       href={`/customers/${customer.id}`}
       className="block bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md hover:border-green-200 transition-all"
     >
-      <div className="p-4 flex items-center gap-4">
-        <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-          <span className="text-green-700 font-bold text-lg">
-            {customer.name.charAt(0).toUpperCase()}
-          </span>
-        </div>
+      <div className="p-4 flex items-center gap-4 relative">
+        {selectionMode && (
+          <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={(e) => onSelect?.(customer.id, e.target.checked)}
+              onClick={(e) => e.stopPropagation()}
+              className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+            />
+          </div>
+        )}
+        <div className={clsx("flex items-center gap-4 flex-1 min-w-0 transition-transform", selectionMode && "translate-x-8")}>
+          <div className="w-12 h-12 rounded-full overflow-hidden bg-green-100 flex items-center justify-center shrink-0 border border-gray-100">
+            {customer.photo ? (
+              <img src={customer.photo} alt={customer.name} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-green-700 font-bold text-lg">
+                {customer.name.charAt(0).toUpperCase()}
+              </span>
+            )}
+          </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             {customer.code && (
@@ -46,36 +65,37 @@ export default function CustomerCard({ customer, billCount, onCollect, collected
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="flex flex-col items-end gap-1">
-            <div
-              className={clsx(
-                'flex items-center gap-1 font-bold text-base',
-                customer.pendingBalance > 0 ? 'text-red-600' : 'text-green-600'
-              )}
-            >
-              <IndianRupee className="w-4 h-4" />
-              {Math.abs(customer.pendingBalance).toFixed(2)}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="flex flex-col items-end gap-1">
+              <div
+                className={clsx(
+                  'flex items-center gap-1 font-bold text-base',
+                  customer.pendingBalance > 0 ? 'text-red-600' : 'text-green-600'
+                )}
+              >
+                <IndianRupee className="w-4 h-4" />
+                {Math.abs(customer.pendingBalance).toFixed(2)}
+              </div>
+              <div className="text-xs text-gray-400">
+                {customer.pendingBalance > 0 ? 'Balance owed' : customer.pendingBalance < 0 ? 'Credit' : 'Settled'}
+              </div>
             </div>
-            <div className="text-xs text-gray-400">
-              {customer.pendingBalance > 0 ? 'Balance owed' : customer.pendingBalance < 0 ? 'Credit' : 'Settled'}
-            </div>
+            {onCollect && customer.pendingBalance > 0 && (
+              <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onCollect(customer); }}
+                className={clsx(
+                  'p-3 rounded-lg transition-colors',
+                  collected
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-green-50 hover:bg-green-100 text-green-700'
+                )}
+                title="Record collection"
+              >
+                {collected ? <Check className="w-4 h-4" /> : <Banknote className="w-4 h-4" />}
+              </button>
+            )}
+            <ChevronRight className="w-4 h-4 text-gray-400" />
           </div>
-          {onCollect && customer.pendingBalance > 0 && (
-            <button
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onCollect(customer); }}
-              className={clsx(
-                'p-3 rounded-lg transition-colors',
-                collected
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-green-50 hover:bg-green-100 text-green-700'
-              )}
-              title="Record collection"
-            >
-              {collected ? <Check className="w-4 h-4" /> : <Banknote className="w-4 h-4" />}
-            </button>
-          )}
-          <ChevronRight className="w-4 h-4 text-gray-400" />
         </div>
       </div>
     </Link>

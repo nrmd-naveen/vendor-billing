@@ -6,6 +6,7 @@ export interface Customer {
   code?: number;       // numeric code for quick lookup
   prefix?: string;     // திரு / திருமதி / செல்வி / செல்வன்
   pendingBalance: number;
+  photo?: string;      // base64 image
   createdAt: string;
 }
 
