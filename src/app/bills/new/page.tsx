@@ -8,6 +8,7 @@ import { BillItem, Customer, Sack, Vegetable } from '@/lib/types';
 import {
   ArrowLeft, Trash2, ChevronDown, IndianRupee, Save, AlertCircle, CornerDownLeft, Package, X
 } from 'lucide-react';
+import { fmtINR } from '@/lib/format';
 import clsx from 'clsx';
 
 interface DraftItem extends BillItem { _key: string; }
@@ -42,16 +43,27 @@ function NewBillForm() {
   const [entrySacks, setEntrySacks] = useState<Sack[]>([]);
   const [entrySackWeight, setEntrySackWeight] = useState('');
   const [showVegDropdown, setShowVegDropdown] = useState(false);
-  const [vegDropdownIdx, setVegDropdownIdx] = useState(0);
+  const [vegDropdownIdx, setVegDropdownIdx] = useState(-1);
 
+  const customerInputRef = useRef<HTMLInputElement>(null);
   const vegSearchRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
   const rateRef = useRef<HTMLInputElement>(null);
   const sackWeightRef = useRef<HTMLInputElement>(null);
+  const coolieRef = useRef<HTMLInputElement>(null);
+  const vadakaiRef = useRef<HTMLInputElement>(null);
+  const amountPaidRef = useRef<HTMLInputElement>(null);
   const vegDropdownRef = useRef<HTMLDivElement>(null);
   const custDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setMounted(true), []);
+
+  // Auto-focus customer input once everything is loaded
+  useEffect(() => {
+    if (mounted && customersLoaded && vegsLoaded && billsLoaded) {
+      setTimeout(() => customerInputRef.current?.focus(), 50);
+    }
+  }, [mounted, customersLoaded, vegsLoaded, billsLoaded]);
 
   const customer: Customer | undefined = customers.find((c) => c.id === customerId);
 
@@ -113,7 +125,7 @@ function NewBillForm() {
     setEntryDescription(''); // Keep empty by default as requested
     setEntryRate(String(veg.defaultPrice));
     setShowVegDropdown(false);
-    setVegDropdownIdx(0);
+    setVegDropdownIdx(-1);
     setTimeout(() => descriptionRef.current?.focus(), 0);
   }, []);
 
@@ -138,7 +150,7 @@ function NewBillForm() {
       pricePerKg: rate, sacks: entrySacks, totalWeight, amount: rate * totalWeight,
     }]);
     setEntryVeg(null); setEntryVegSearch(''); setEntryDescription(''); setEntryRate('');
-    setEntrySacks([]); setEntrySackWeight('');
+    setEntrySacks([]); setEntrySackWeight(''); setVegDropdownIdx(-1);
     setTimeout(() => vegSearchRef.current?.focus(), 0);
   }, [entryVeg, entryRate, entrySacks, entryDescription]);
 
@@ -174,9 +186,14 @@ function NewBillForm() {
       e.preventDefault();
       setVegDropdownIdx((i) => Math.max(i - 1, 0));
     } else if (e.key === 'Enter' || e.key === 'Tab') {
-      if (showVegDropdown && filteredVegs[vegDropdownIdx]) {
+      if (vegDropdownIdx >= 0 && showVegDropdown && filteredVegs[vegDropdownIdx]) {
         e.preventDefault();
         pickVeg(filteredVegs[vegDropdownIdx]);
+      } else if (entryVegSearch.trim() === '') {
+        // No item typed — user is done adding items, jump to labour charge
+        e.preventDefault();
+        setShowVegDropdown(false);
+        coolieRef.current?.focus();
       }
     } else if (e.key === 'Escape') {
       setShowVegDropdown(false);
@@ -192,6 +209,14 @@ function NewBillForm() {
 
   const handleRateKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); sackWeightRef.current?.focus(); }
+  };
+
+  const handleCoolieKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); vadakaiRef.current?.focus(); }
+  };
+
+  const handleVadakaiKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); amountPaidRef.current?.focus(); }
   };
 
   const handleSackWeightKey = (e: React.KeyboardEvent) => {
@@ -233,7 +258,7 @@ function NewBillForm() {
     } finally { setSaving(false); }
   };
 
-  if (!mounted || !customersLoaded || !vegsLoaded || !billsLoaded) {
+  if ( saving || !mounted || !customersLoaded || !vegsLoaded || !billsLoaded) {
     return (
       <div className="p-6 lg:p-8 flex items-center justify-center min-h-64">
         <div className="text-gray-400 animate-pulse">Loading...</div>
@@ -269,6 +294,7 @@ function NewBillForm() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Customer <span className="text-red-500">*</span></label>
             <div className="relative">
               <input
+                ref={customerInputRef}
                 type="text" value={customerSearch}
                 onChange={(e) => { setCustomerSearch(e.target.value); setCustomerId(''); setShowCustomerDropdown(true); setCustomerDropdownIdx(0); }}
                 onFocus={() => setShowCustomerDropdown(true)}
@@ -294,7 +320,7 @@ function NewBillForm() {
                       {c.nickname && <span className="text-gray-500 text-xs">({c.nickname})</span>}
                     </div>
                     {c.phone && <div className="text-gray-400 text-xs">{c.phone}</div>}
-                    {c.pendingBalance > 0 && <div className="text-red-500 text-xs">Balance: ₹{c.pendingBalance.toFixed(0)}</div>}
+                    {c.pendingBalance > 0 && <div className="text-red-500 text-xs">Balance: ₹{fmtINR(c.pendingBalance)}</div>}
                   </button>
                 ))}
               </div>
@@ -315,7 +341,7 @@ function NewBillForm() {
             </span>
             <span className={clsx('font-bold flex items-center gap-0.5', previousBalance > 0 ? 'text-red-700' : 'text-green-700')}>
               <IndianRupee className="w-3.5 h-3.5" />
-              {Math.abs(previousBalance).toFixed(2)}
+              {fmtINR(Math.abs(previousBalance), 2)}
               {previousBalance < 0 && ' (credit)'}
             </span>
           </div>
@@ -351,12 +377,12 @@ function NewBillForm() {
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 text-right text-gray-600">₹{item.pricePerKg}</td>
+                    <td className="px-3 py-2.5 text-right text-gray-600">₹{fmtINR(item.pricePerKg, 2)}</td>
                     <td className="px-3 py-2.5 text-right text-gray-600">
                       <div>{item.totalWeight} kg</div>
                       <div className="text-xs text-gray-400">{item.sacks.length} sack{item.sacks.length !== 1 ? 's' : ''} ({item.sacks.map(s => s.weight).join(', ')})</div>
                     </td>
-                    <td className="px-3 py-2.5 text-right font-semibold text-green-700">₹{item.amount.toFixed(2)}</td>
+                    <td className="px-3 py-2.5 text-right font-semibold text-green-700">₹{fmtINR(item.amount, 2)}</td>
                     <td className="px-2 py-2.5 text-right">
                       <button type="button" onClick={() => removeItem(item._key)} className="text-gray-300 hover:text-red-500 transition-colors">
                         <Trash2 className="w-4 h-4" />
@@ -368,7 +394,7 @@ function NewBillForm() {
               <tfoot>
                 <tr className="border-t border-gray-200 bg-gray-50">
                   <td colSpan={3} className="px-3 py-2 text-right font-semibold text-gray-700 text-sm">Today&apos;s Total</td>
-                  <td className="px-3 py-2 text-right font-bold text-green-700">₹{subtotal.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right font-bold text-green-700">₹{fmtINR(subtotal, 2)}</td>
                   <td />
                 </tr>
               </tfoot>
@@ -390,7 +416,7 @@ function NewBillForm() {
               ref={vegSearchRef} type="text" value={entryVegSearch}
               onChange={(e) => {
                 setEntryVegSearch(e.target.value); setEntryVeg(null); setEntryDescription(''); setEntryRate('');
-                setEntrySacks([]); setShowVegDropdown(true); setVegDropdownIdx(0);
+                setEntrySacks([]); setShowVegDropdown(true); setVegDropdownIdx(e.target.value.trim() ? 0 : -1);
               }}
               onKeyDown={handleVegSearchKey}
               onFocus={() => setShowVegDropdown(true)}
@@ -425,7 +451,7 @@ function NewBillForm() {
                     {v.code && <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded shrink-0">{v.code}</span>}
                     <span>{v.emoji} {v.name}</span>
                     {v.englishName && <span className="text-gray-500 text-xs">({v.englishName})</span>}
-                    <span className="ml-auto text-gray-400 text-xs shrink-0">₹{v.defaultPrice}/kg</span>
+                    <span className="ml-auto text-gray-400 text-xs shrink-0">₹{fmtINR(v.defaultPrice)}/kg</span>
                   </button>
                 ))}
               </div>
@@ -476,8 +502,8 @@ function NewBillForm() {
           {entryVeg && entryRate && entrySacks.length > 0 && (
             <div className="text-xs text-gray-500 px-1 flex items-center gap-1">
               <span className="text-green-600 font-medium">{entryVeg.emoji} {entryDescription || entryVeg.name}</span>
-              — {entrySacks.length} மூடை ({entrySacksTotal} kg) × ₹{entryRate} =
-              <span className="font-semibold text-gray-800">₹{(entrySacksTotal * parseFloat(entryRate)).toFixed(2)}</span>
+              — {entrySacks.length} மூடை ({entrySacksTotal} kg) × ₹{fmtINR(parseFloat(entryRate) || 0, 2)} =
+              <span className="font-semibold text-gray-800">₹{fmtINR(entrySacksTotal * parseFloat(entryRate), 2)}</span>
               <span className="text-gray-400 ml-1">↵ empty weight to add item</span>
             </div>
           )}
@@ -492,7 +518,8 @@ function NewBillForm() {
             <label className="block text-sm font-medium text-gray-700 mb-1">கூலி / Labour Charge (₹)</label>
             <div className="relative w-40">
               <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input type="number" min="0" step="1" value={coolie} onChange={(e) => setCoolie(e.target.value)}
+              <input ref={coolieRef} type="number" min="0" step="1" value={coolie} onChange={(e) => setCoolie(e.target.value)}
+                onKeyDown={handleCoolieKey}
                 placeholder="0"
                 className="w-full border border-gray-400 rounded-lg pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
             </div>
@@ -501,29 +528,30 @@ function NewBillForm() {
             <label className="block text-sm font-medium text-gray-700 mb-1">வாடகை / Rent (₹)</label>
             <div className="relative w-40">
               <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input type="number" min="0" step="1" value={vadakai} onChange={(e) => setVadakai(e.target.value)}
+              <input ref={vadakaiRef} type="number" min="0" step="1" value={vadakai} onChange={(e) => setVadakai(e.target.value)}
+                onKeyDown={handleVadakaiKey}
                 placeholder="0"
                 className="w-full border border-gray-400 rounded-lg pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
             </div>
           </div>
         </div>
         <div className="space-y-2 text-sm">
-          <div className="flex justify-between text-gray-700"><span>Today&apos;s Total</span><span className="font-semibold">₹{subtotal.toFixed(2)}</span></div>
-          {coolieVal > 0 && <div className="flex justify-between text-gray-700"><span>கூலி</span><span className="font-semibold">₹{coolieVal.toFixed(2)}</span></div>}
-          {vadakaiVal > 0 && <div className="flex justify-between text-gray-700"><span>வாடகை</span><span className="font-semibold">₹{vadakaiVal.toFixed(2)}</span></div>}
+          <div className="flex justify-between text-gray-700"><span>Today&apos;s Total</span><span className="font-semibold">₹{fmtINR(subtotal, 2)}</span></div>
+          {coolieVal > 0 && <div className="flex justify-between text-gray-700"><span>கூலி</span><span className="font-semibold">₹{fmtINR(coolieVal, 2)}</span></div>}
+          {vadakaiVal > 0 && <div className="flex justify-between text-gray-700"><span>வாடகை</span><span className="font-semibold">₹{fmtINR(vadakaiVal, 2)}</span></div>}
           {previousBalance !== 0 && (
             <div className={clsx('flex justify-between', previousBalance > 0 ? 'text-red-600' : 'text-green-600')}>
               <span>முன் பாக்கி</span>
-              <span className="font-semibold">{previousBalance > 0 ? '+' : '-'}₹{Math.abs(previousBalance).toFixed(2)}</span>
+              <span className="font-semibold">{previousBalance > 0 ? '+' : '-'}₹{fmtINR(Math.abs(previousBalance), 2)}</span>
             </div>
           )}
-          <div className="flex justify-between font-bold text-gray-900 border-t pt-2 text-base"><span>நிகர பாக்கி</span><span>₹{totalDue.toFixed(2)}</span></div>
+          <div className="flex justify-between font-bold text-gray-900 border-t pt-2 text-base"><span>நிகர பாக்கி</span><span>₹{fmtINR(totalDue, 2)}</span></div>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">உடன் வரவு — Amount Paid Now (₹)</label>
           <div className="relative">
             <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="number" min="0" step="0.50" value={amountPaid}
+            <input ref={amountPaidRef} type="number" min="0" step="0.50" value={amountPaid}
               onChange={(e) => setAmountPaid(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
               placeholder="0.00"
@@ -531,8 +559,8 @@ function NewBillForm() {
           </div>
           {totalDue > 0 && (
             <div className="flex gap-2 mt-2 flex-wrap">
-              <button type="button" onClick={() => setAmountPaid(totalDue.toFixed(2))} className="text-xs border border-green-200 text-green-700 px-3 py-1 rounded-full hover:bg-green-50 transition-colors">Pay Full ₹{totalDue.toFixed(0)}</button>
-              <button type="button" onClick={() => setAmountPaid(subtotal.toFixed(2))} className="text-xs border border-gray-200 text-gray-600 px-3 py-1 rounded-full hover:bg-gray-50 transition-colors">Today only ₹{subtotal.toFixed(0)}</button>
+              <button type="button" onClick={() => setAmountPaid(totalDue.toFixed(2))} className="text-xs border border-green-200 text-green-700 px-3 py-1 rounded-full hover:bg-green-50 transition-colors">Pay Full ₹{fmtINR(totalDue, 0)}</button>
+              <button type="button" onClick={() => setAmountPaid(subtotal.toFixed(2))} className="text-xs border border-gray-200 text-gray-600 px-3 py-1 rounded-full hover:bg-gray-50 transition-colors">Today only ₹{fmtINR(subtotal, 0)}</button>
               <button type="button" onClick={() => setAmountPaid('0')} className="text-xs border border-gray-200 text-gray-600 px-3 py-1 rounded-full hover:bg-gray-50 transition-colors">No payment</button>
             </div>
           )}
@@ -545,7 +573,7 @@ function NewBillForm() {
           </div>
           <div className={clsx('text-2xl font-bold flex items-center gap-0.5',
             newBalance > 0 ? 'text-red-600' : newBalance < 0 ? 'text-blue-600' : 'text-green-600')}>
-            <IndianRupee className="w-5 h-5" />{Math.abs(newBalance).toFixed(2)}
+            <IndianRupee className="w-5 h-5" />{fmtINR(Math.abs(newBalance), 2)}
           </div>
         </div>
       </div>

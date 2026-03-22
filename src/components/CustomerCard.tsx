@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Customer } from '@/lib/types';
 import { Phone, IndianRupee, ChevronRight, Banknote, Check } from 'lucide-react';
 import clsx from 'clsx';
+import { fmtINR } from '@/lib/format';
 
 interface CustomerCardProps {
   customer: Customer;
@@ -74,7 +75,7 @@ export default function CustomerCard({ customer, billCount, onCollect, collected
                 )}
               >
                 <IndianRupee className="w-4 h-4" />
-                {Math.abs(customer.pendingBalance).toFixed(2)}
+                {fmtINR(Math.abs(customer.pendingBalance), 2)}
               </div>
               <div className="text-xs text-gray-400">
                 {customer.pendingBalance > 0 ? 'Balance owed' : customer.pendingBalance < 0 ? 'Credit' : 'Settled'}

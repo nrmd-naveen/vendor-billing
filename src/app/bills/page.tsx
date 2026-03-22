@@ -6,6 +6,7 @@ import { useBills } from '@/lib/storage';
 import { PlusCircle, Search, X, IndianRupee, FileText, Calendar } from 'lucide-react';
 import { Bill } from '@/lib/types';
 import clsx from 'clsx';
+import { fmtINR } from '@/lib/format';
 
 export default function BillsPage() {
   const { bills, loaded } = useBills();
@@ -60,7 +61,7 @@ export default function BillsPage() {
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Bills</h1>
           <p className="text-gray-500 text-sm mt-1">
             {filtered.length} bill{filtered.length !== 1 ? 's' : ''}
-            {filtered.length > 0 && ` · ₹${filteredTotal.toFixed(0)} total`}
+            {filtered.length > 0 && ` · ₹${fmtINR(filteredTotal)} total`}
           </p>
         </div>
         <Link
@@ -130,7 +131,7 @@ export default function BillsPage() {
                     {formatDate(date)}
                   </span>
                   <span className="text-sm text-gray-400">
-                    {dayBills.length} bill{dayBills.length !== 1 ? 's' : ''} · ₹{dayTotal.toFixed(0)}
+                    {dayBills.length} bill{dayBills.length !== 1 ? 's' : ''} · ₹{fmtINR(dayTotal)}
                   </span>
                 </div>
                 <div className="space-y-2">
@@ -154,10 +155,10 @@ export default function BillsPage() {
                       <div className="text-right shrink-0">
                         <div className="font-semibold text-gray-900 flex items-center gap-0.5 justify-end">
                           <IndianRupee className="w-3.5 h-3.5" />
-                          {bill.subtotal.toFixed(0)}
+                          {fmtINR(bill.subtotal)}
                         </div>
                         {bill.newBalance > 0 ? (
-                          <div className="text-red-500 text-xs">Bal: ₹{bill.newBalance.toFixed(0)}</div>
+                          <div className="text-red-500 text-xs">Bal: ₹{fmtINR(bill.newBalance)}</div>
                         ) : (
                           <div className="text-green-600 text-xs">Settled</div>
                         )}

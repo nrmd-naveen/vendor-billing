@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Banknote, Search, X, IndianRupee, Calendar, TrendingUp, Users } from 'lucide-react';
+import { Banknote, Search, X, IndianRupee, Calendar, TrendingUp, Users, Check, Pencil } from 'lucide-react';
 import { Collection } from '@/lib/types';
 import clsx from 'clsx';
+import { fmtINR } from '@/lib/format';
 
 function getLocalDate() {
   const d = new Date();
@@ -15,6 +16,60 @@ function formatDate(dateStr: string, today: string) {
   if (dateStr === today) return 'Today';
   const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function EditableAmount({ collection, onSave }: { collection: Collection; onSave: (id: string, amount: number) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(String(collection.amount));
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  const commit = () => {
+    const n = parseFloat(value);
+    if (n > 0 && n !== collection.amount) onSave(collection.id, n);
+    else setValue(String(collection.amount));
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1" onClick={e => e.preventDefault()}>
+        <span className="text-green-700"><IndianRupee className="w-4 h-4" /></span>
+        <input
+          ref={inputRef}
+          type="number"
+          min="1"
+          step="1"
+          value={value}
+          onChange={e => setValue(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setValue(String(collection.amount)); setEditing(false); } }}
+          onBlur={commit}
+          className="w-24 border border-green-400 rounded-lg px-2 py-0.5 text-sm font-bold text-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+        />
+        <button type="button" onMouseDown={e => { e.preventDefault(); commit(); }} className="text-green-600 hover:text-green-800">
+          <Check className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 group">
+      <span className="font-bold text-green-700 flex items-center gap-0.5 text-base">
+        <IndianRupee className="w-4 h-4" />{fmtINR(collection.amount)}
+      </span>
+      <button
+        type="button"
+        onClick={e => { e.preventDefault(); setEditing(true); }}
+        className="p-3 ml-4 bg-green-200 rounded-lg text-gray-400 hover:text-green-600 transition-opacity"
+      >
+        <Pencil className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
 }
 
 export default function CollectionsPage() {
@@ -33,6 +88,18 @@ export default function CollectionsPage() {
       .then((data: Collection[]) => { setCollections(data); setLoaded(true); })
       .catch(() => setLoaded(true));
   }, []);
+
+  const handleAmountSave = async (id: string, amount: number) => {
+    const res = await fetch(`/api/collections/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount }),
+    });
+    if (res.ok) {
+      const updated: Collection = await res.json();
+      setCollections(prev => prev.map(c => c.id === id ? updated : c));
+    }
+  };
 
   if (!mounted || !loaded) {
     return (
@@ -64,7 +131,7 @@ export default function CollectionsPage() {
   });
   const sortedDates = Object.keys(grouped).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
 
-  // Per-customer report (from all collections, filtered by search/date)
+  // Per-customer report
   const customerTotals: Record<string, { name: string; id: string; total: number; count: number }> = {};
   filtered.forEach(c => {
     if (!customerTotals[c.customerId]) {
@@ -84,7 +151,7 @@ export default function CollectionsPage() {
       <div>
         <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Collections</h1>
         <p className="text-gray-500 text-sm mt-1">
-          {collections.length} record{collections.length !== 1 ? 's' : ''} · ₹{totalAll.toFixed(0)} total collected
+          {collections.length} record{collections.length !== 1 ? 's' : ''} · ₹{fmtINR(totalAll)} total collected
         </p>
       </div>
 
@@ -98,7 +165,7 @@ export default function CollectionsPage() {
             <span className="text-gray-500 text-xs">Today</span>
           </div>
           <div className="text-xl font-bold text-green-700 flex items-center gap-0.5">
-            <IndianRupee className="w-4 h-4" />{totalToday.toFixed(0)}
+            <IndianRupee className="w-4 h-4" />{fmtINR(totalToday)}
           </div>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
@@ -109,7 +176,7 @@ export default function CollectionsPage() {
             <span className="text-gray-500 text-xs">This Month</span>
           </div>
           <div className="text-xl font-bold text-blue-700 flex items-center gap-0.5">
-            <IndianRupee className="w-4 h-4" />{totalMonth.toFixed(0)}
+            <IndianRupee className="w-4 h-4" />{fmtINR(totalMonth)}
           </div>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
@@ -120,14 +187,13 @@ export default function CollectionsPage() {
             <span className="text-gray-500 text-xs">All Time</span>
           </div>
           <div className="text-xl font-bold text-purple-700 flex items-center gap-0.5">
-            <IndianRupee className="w-4 h-4" />{totalAll.toFixed(0)}
+            <IndianRupee className="w-4 h-4" />{fmtINR(totalAll)}
           </div>
         </div>
       </div>
 
       {/* View toggle + filters */}
       <div className="flex flex-col sm:flex-row gap-3">
-        {/* Toggle */}
         <div className="flex bg-gray-100 rounded-lg p-1 shrink-0">
           <button
             onClick={() => setView('list')}
@@ -197,7 +263,7 @@ export default function CollectionsPage() {
                     {formatDate(date, today)}
                   </span>
                   <span className="text-sm text-gray-400">
-                    {dayEntries.length} collection{dayEntries.length !== 1 ? 's' : ''} · ₹{dayTotal.toFixed(0)}
+                    {dayEntries.length} collection{dayEntries.length !== 1 ? 's' : ''} · ₹{fmtINR(dayTotal)}
                   </span>
                 </div>
                 <div className="space-y-2">
@@ -208,8 +274,8 @@ export default function CollectionsPage() {
                       className="flex items-center justify-between bg-white rounded-xl border border-gray-100 px-4 py-3.5 hover:shadow-sm hover:border-green-200 transition-all"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                          <span className="text-green-700 font-bold text-sm">{c.customerName.charAt(0).toUpperCase()}</span>
+                        <div className="w-11 h-11 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                          <span className="text-green-700 font-bold text-base">{c.customerName.charAt(0).toUpperCase()}</span>
                         </div>
                         <div>
                           <div className="font-medium text-gray-900">{c.customerName}</div>
@@ -218,9 +284,7 @@ export default function CollectionsPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="font-bold text-green-700 flex items-center gap-0.5 text-base">
-                        <IndianRupee className="w-4 h-4" />{c.amount.toFixed(0)}
-                      </div>
+                      <EditableAmount collection={c} onSave={handleAmountSave} />
                     </Link>
                   ))}
                 </div>
@@ -257,7 +321,7 @@ export default function CollectionsPage() {
                       </td>
                       <td className="px-4 py-3 text-center text-gray-500">{row.count}×</td>
                       <td className="px-4 py-3 text-right font-bold text-green-700 flex items-center justify-end gap-0.5">
-                        <IndianRupee className="w-3.5 h-3.5" />{row.total.toFixed(2)}
+                        <IndianRupee className="w-3.5 h-3.5" />{fmtINR(row.total, 2)}
                       </td>
                     </tr>
                   ))}
@@ -268,7 +332,7 @@ export default function CollectionsPage() {
                     <td className="px-4 py-3 text-center text-gray-500">{filtered.length}×</td>
                     <td className="px-4 py-3 text-right font-bold text-green-700 flex items-center justify-end gap-0.5">
                       <IndianRupee className="w-3.5 h-3.5" />
-                      {filtered.reduce((s, c) => s + c.amount, 0).toFixed(2)}
+                      {fmtINR(filtered.reduce((s, c) => s + c.amount, 0), 2)}
                     </td>
                   </tr>
                 </tfoot>
@@ -304,7 +368,7 @@ export default function CollectionsPage() {
                         </td>
                         <td className="px-4 py-3 text-center text-gray-500">{dayEntries.length}</td>
                         <td className="px-4 py-3 text-right font-bold text-green-700 flex items-center justify-end gap-0.5">
-                          <IndianRupee className="w-3.5 h-3.5" />{dayTotal.toFixed(2)}
+                          <IndianRupee className="w-3.5 h-3.5" />{fmtINR(dayTotal, 2)}
                         </td>
                       </tr>
                     );

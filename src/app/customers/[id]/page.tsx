@@ -1,12 +1,64 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCustomers, useBills } from '@/lib/storage';
-import { ArrowLeft, Phone, IndianRupee, FileText, PlusCircle, Edit2, Trash2, Check, X, Banknote } from 'lucide-react';
+import { ArrowLeft, Phone, IndianRupee, FileText, PlusCircle, Edit2, Trash2, Check, X, Banknote, Pencil } from 'lucide-react';
 import { Bill, Collection, CUSTOMER_PREFIXES } from '@/lib/types';
+import { fmtINR } from '@/lib/format';
 import clsx from 'clsx';
+
+function CollectionRow({ collection, onSave }: { collection: Collection; onSave: (id: string, newAmount: number, oldAmount: number) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(String(collection.amount));
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+
+  const commit = () => {
+    const n = parseFloat(value);
+    if (n > 0 && n !== collection.amount) onSave(collection.id, n, collection.amount);
+    else setValue(String(collection.amount));
+    setEditing(false);
+  };
+
+  return (
+    <div className="flex items-center justify-between bg-white rounded-xl border border-gray-100 px-4 py-3">
+      <div>
+        <div className="font-medium text-gray-900 text-sm">Amount Collected</div>
+        <div className="text-gray-400 text-xs">
+          {new Date(collection.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+        </div>
+      </div>
+      {editing ? (
+        <div className="flex items-center gap-1">
+          <span className="text-green-700"><IndianRupee className="w-3.5 h-3.5" /></span>
+          <input
+            ref={inputRef}
+            type="number" min="1" step="1" value={value}
+            onChange={e => setValue(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setValue(String(collection.amount)); setEditing(false); } }}
+            onBlur={commit}
+            className="w-24 border border-green-400 rounded-lg px-2 py-0.5 text-sm font-bold text-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          <button type="button" onMouseDown={e => { e.preventDefault(); commit(); }} className="text-green-600 hover:text-green-800">
+            <Check className="w-4 h-4" />
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1.5 group">
+          <span className="font-semibold text-green-700 flex items-center gap-0.5">
+            <IndianRupee className="w-3.5 h-3.5" />{fmtINR(collection.amount, 2)}
+          </span>
+          <button type="button" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-green-600 transition-opacity">
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -83,6 +135,20 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
   const handleDelete = () => {
     deleteCustomer(id);
     router.push('/customers');
+  };
+
+  const handleCollectionEdit = async (collectionId: string, newAmount: number, oldAmount: number) => {
+    const res = await fetch(`/api/collections/${collectionId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: newAmount }),
+    });
+    if (res.ok) {
+      const updated: Collection = await res.json();
+      setCollections(prev => prev.map(c => c.id === collectionId ? updated : c));
+      // Reflect balance change locally: diff = newAmount - oldAmount, balance decreases by diff
+      updateCustomer(id, { pendingBalance: customer!.pendingBalance - (newAmount - oldAmount) });
+    }
   };
 
   const handleCollect = () => {
@@ -227,13 +293,13 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               </div>
               <div className="text-center border-x border-gray-100">
                 <div className="text-lg font-bold text-gray-900 flex items-center justify-center gap-0.5">
-                  <IndianRupee className="w-4 h-4" />{totalSpent.toFixed(0)}
+                  <IndianRupee className="w-4 h-4" />{fmtINR(totalSpent)}
                 </div>
                 <div className="text-xs text-gray-500">Total Billed</div>
               </div>
               <div className="text-center">
                 <div className={clsx('text-lg font-bold flex items-center justify-center gap-0.5', customer.pendingBalance > 0 ? 'text-red-600' : 'text-green-600')}>
-                  <IndianRupee className="w-4 h-4" />{Math.abs(customer.pendingBalance).toFixed(0)}
+                  <IndianRupee className="w-4 h-4" />{fmtINR(Math.abs(customer.pendingBalance))}
                 </div>
                 <div className="text-xs text-gray-500">
                   {customer.pendingBalance > 0 ? 'Balance Owed' : customer.pendingBalance < 0 ? 'Credit' : 'Settled'}
@@ -272,7 +338,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                   </div>
                   {customer.pendingBalance > 0 && (
                     <p className="text-xs text-gray-400">
-                      Current balance: ₹{customer.pendingBalance.toFixed(2)} → after collection: ₹{Math.max(0, customer.pendingBalance - (parseFloat(collectAmount) || 0)).toFixed(2)}
+                      Current balance: ₹{fmtINR(customer.pendingBalance, 2)} → after collection: ₹{fmtINR(Math.max(0, customer.pendingBalance - (parseFloat(collectAmount) || 0)), 2)}
                     </p>
                   )}
                 </div>
@@ -354,10 +420,10 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                 </div>
                 <div className="text-right">
                   <div className="font-semibold text-gray-900 text-sm flex items-center gap-0.5 justify-end">
-                    <IndianRupee className="w-3.5 h-3.5" />{bill.subtotal.toFixed(0)}
+                    <IndianRupee className="w-3.5 h-3.5" />{fmtINR(bill.subtotal)}
                   </div>
                   {bill.newBalance > 0 && (
-                    <div className="text-red-500 text-xs">Bal: ₹{bill.newBalance.toFixed(0)}</div>
+                    <div className="text-red-500 text-xs">Bal: ₹{fmtINR(bill.newBalance)}</div>
                   )}
                   {bill.newBalance <= 0 && bill.amountPaid > 0 && (
                     <div className="text-green-600 text-xs">Paid</div>
@@ -378,17 +444,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
           </h2>
           <div className="space-y-2">
             {collections.map((c: Collection) => (
-              <div key={c.id} className="flex items-center justify-between bg-white rounded-xl border border-gray-100 px-4 py-3">
-                <div>
-                  <div className="font-medium text-gray-900 text-sm">Amount Collected</div>
-                  <div className="text-gray-400 text-xs">
-                    {new Date(c.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </div>
-                </div>
-                <div className="font-semibold text-green-700 flex items-center gap-0.5">
-                  <IndianRupee className="w-3.5 h-3.5" />{c.amount.toFixed(2)}
-                </div>
-              </div>
+              <CollectionRow key={c.id} collection={c} onSave={handleCollectionEdit} />
             ))}
           </div>
         </div>
@@ -399,11 +455,11 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
         <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3 text-sm text-gray-600 space-y-1">
           <div className="flex justify-between">
             <span>Total billed</span>
-            <span className="font-medium">₹{totalSpent.toFixed(2)}</span>
+            <span className="font-medium">₹{fmtINR(totalSpent, 2)}</span>
           </div>
           <div className="flex justify-between">
             <span>Total paid</span>
-            <span className="font-medium">₹{totalPaid.toFixed(2)}</span>
+            <span className="font-medium">₹{fmtINR(totalPaid, 2)}</span>
           </div>
         </div>
       )}

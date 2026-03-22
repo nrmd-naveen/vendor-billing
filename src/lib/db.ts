@@ -505,3 +505,20 @@ export function getAllCollections(): Collection[] {
   const db = getDb();
   return (db.prepare('SELECT * FROM collections ORDER BY created_at DESC').all() as DBCollection[]).map(mapCollection);
 }
+
+export function updateCollectionAmount(id: string, newAmount: number): Collection | null {
+  const db = getDb();
+  const existing = db.prepare('SELECT * FROM collections WHERE id = ?').get(id) as DBCollection | undefined;
+  if (!existing) return null;
+  const diff = newAmount - existing.amount;
+  // Use a transaction so balance and collection update atomically
+  db.transaction(() => {
+    db.prepare('UPDATE collections SET amount = ? WHERE id = ?').run(newAmount, id);
+    if (diff !== 0) {
+      // More collected → balance goes down; less collected → balance goes up
+      db.prepare('UPDATE customers SET pending_balance = pending_balance - ? WHERE id = ?').run(diff, existing.customer_id);
+    }
+  })();
+  const updated = db.prepare('SELECT * FROM collections WHERE id = ?').get(id) as DBCollection;
+  return mapCollection(updated);
+}

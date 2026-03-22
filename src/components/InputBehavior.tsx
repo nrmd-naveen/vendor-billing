@@ -8,7 +8,7 @@ import { useEffect } from 'react';
  */
 export default function InputBehavior() {
   useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
+    const handleWheel = () => {
       // If the targeted element is a focused number input, prevent the scroll from changing its value
       if (
         document.activeElement instanceof HTMLInputElement &&

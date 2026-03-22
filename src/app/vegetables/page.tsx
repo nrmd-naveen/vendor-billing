@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useVegetables } from '@/lib/storage';
 import { Vegetable } from '@/lib/types';
 import { Plus, Pencil, Trash2, Check, X, IndianRupee, Leaf } from 'lucide-react';
+import { fmtINR } from '@/lib/format';
 
 const EMOJI_OPTIONS = [
   '🍆', '🍅', '🥔', '🧅', '🥕', '🫘', '🥒', '🌿', '🥬', '🥦',
@@ -298,7 +299,7 @@ export default function VegetablesPage() {
                       <div className="text-gray-400 text-[10px] truncate italic">&quot;{v.nicknames.join(', ')}&quot;</div>
                     )}
                     <div className="text-green-700 text-sm font-semibold flex items-center gap-0.5 mt-0.5">
-                      <IndianRupee className="w-3 h-3" />{v.defaultPrice}/kg
+                      <IndianRupee className="w-3 h-3" />{fmtINR(v.defaultPrice)}/kg
                     </div>
                   </div>
                   <div className="flex gap-1 shrink-0">

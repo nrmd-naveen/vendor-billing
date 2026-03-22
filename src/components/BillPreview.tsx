@@ -4,6 +4,7 @@ import { Bill } from '@/lib/types';
 import { useSettings } from '@/lib/useSettings';
 import { Printer, Download } from 'lucide-react';
 import { toPng } from 'html-to-image';
+import { fmtINR } from '@/lib/format';
 
 interface BillPreviewProps {
   bill: Bill;
@@ -58,7 +59,7 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
       <div
         id="bill-print-area"
         className="p-4 print:p-0"
-        style={{ fontFamily: "'Noto Sans Tamil', 'Latha', Arial, sans-serif", fontSize: '13px' }}
+        style={{ fontFamily: "var(--font-noto-tamil), 'Noto Sans Tamil', 'Latha', Arial, sans-serif", fontSize: '13px' }}
       >
         <div className="border-2 border-gray-700 max-w-2xl mx-auto print:max-w-full print:border-black">
 
@@ -69,11 +70,11 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
             )}
             <div className="flex items-center justify-between">
               {/* Logo left */}
-              <div className="w-16 h-16 flex items-center justify-center shrink-0">
+              <div className="w-20 h-20 flex items-center justify-center shrink-0">
                 {settings.logoLeft ? (
-                  <img src={settings.logoLeft} alt="logo" className="w-16 h-16 object-contain" />
+                  <img src={settings.logoLeft} alt="logo" className="w-20 h-20 object-contain" />
                 ) : (
-                  <div className="w-16 h-16 bg-gray-100 rounded" />
+                  <div className="w-20 h-20 bg-gray-100 rounded" />
                 )}
               </div>
 
@@ -89,11 +90,11 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
               </div>
 
               {/* Logo right */}
-              <div className="w-16 h-16 flex items-center justify-center shrink-0">
+              <div className="w-20 h-20 flex items-center justify-center shrink-0">
                 {settings.logoRight ? (
-                  <img src={settings.logoRight} alt="logo" className="w-16 h-16 object-contain" />
+                  <img src={settings.logoRight} alt="logo" className="w-20 h-20 object-contain" />
                 ) : (
-                  <div className="w-16 h-16 bg-gray-100 rounded" />
+                  <div className="w-20 h-20 bg-gray-100 rounded" />
                 )}
               </div>
             </div>
@@ -116,17 +117,17 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
 
           {/* ── Bill meta ─────────────────────────────────── */}
           <div className="border-b border-gray-700 print:border-black flex justify-between items-center px-3 py-1.5">
-            <div>
+            <div className="whitespace-nowrap">
               <span className="font-semibold">எண் : </span>
               <span className="text-red-600 font-bold text-base">{bill.billNumber}</span>
             </div>
-            <div>
+            <div className="whitespace-nowrap">
               <span className="font-semibold">தேதி : </span>
               <span className="font-medium">{formatBillDate(bill.date)}</span>
             </div>
           </div>
           <div className="border-b border-gray-700 print:border-black px-3 py-1">
-            <span className="font-bold text-base">{displayName}</span>
+            {bill.customerPrefix && <span className="text-xs font-medium text-gray-600 mr-1">{bill.customerPrefix}</span>}<span className="font-bold text-base">{displayName}</span>
           </div>
 
           {/* ── Items table ───────────────────────────────── */}
@@ -157,7 +158,7 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
                 <tr key={idx} className="border-b border-gray-300 print:border-gray-400 align-top">
                   {/* விலை */}
                   <td className="py-1.5 px-1 text-right border-r border-gray-400">
-                    {item.pricePerKg.toFixed(2)}
+                    {fmtINR(item.pricePerKg, 2)}
                   </td>
                   {/* விபரம் */}
                   <td className="py-1.5 px-2 border-r border-gray-400">
@@ -186,7 +187,7 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
                   </td>
                   {/* பற்று */}
                   <td className="py-1.5 px-1 text-right border-r border-gray-400">
-                    {item.amount.toFixed(2)}
+                    {fmtINR(item.amount, 2)}
                   </td>
                   {/* வரவு */}
                   <td className="py-1.5 px-1 text-right" />
@@ -210,7 +211,7 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
                 <td className="py-1.5 px-2 border-r border-gray-400" />
                 <td className="py-1.5 px-1 text-center border-r border-gray-400">{totalSacks}</td>
                 <td className="py-1.5 px-1 text-right border-r border-gray-400">{totalWeight}</td>
-                <td className="py-1.5 px-1 text-right border-r border-gray-400">{bill.subtotal.toFixed(2)}</td>
+                <td className="py-1.5 px-1 text-right border-r border-gray-400">{fmtINR(bill.subtotal, 2)}</td>
                 <td className="py-1.5 px-1" />
               </tr>
 
@@ -221,7 +222,7 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
                   <td className="py-1.5 px-2 border-r border-gray-400 font-semibold">முன் பாக்கி பற்று</td>
                   <td className="border-r border-gray-400" />
                   <td className="border-r border-gray-400" />
-                  <td className="py-1.5 px-1 text-right border-r border-gray-400">{bill.previousBalance.toFixed(2)}</td>
+                  <td className="py-1.5 px-1 text-right border-r border-gray-400">{fmtINR(bill.previousBalance, 2)}</td>
                   <td />
                 </tr>
               )}
@@ -233,7 +234,7 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
                   <td className="py-1.5 px-2 border-r border-gray-400 font-semibold">கூலி</td>
                   <td className="border-r border-gray-400" />
                   <td className="border-r border-gray-400" />
-                  <td className="py-1.5 px-1 text-right border-r border-gray-400">{bill.coolie.toFixed(2)}</td>
+                  <td className="py-1.5 px-1 text-right border-r border-gray-400">{fmtINR(bill.coolie, 2)}</td>
                   <td />
                 </tr>
               )}
@@ -245,7 +246,7 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
                   <td className="py-1.5 px-2 border-r border-gray-400 font-semibold">வாடகை</td>
                   <td className="border-r border-gray-400" />
                   <td className="border-r border-gray-400" />
-                  <td className="py-1.5 px-1 text-right border-r border-gray-400">{bill.vadakai.toFixed(2)}</td>
+                  <td className="py-1.5 px-1 text-right border-r border-gray-400">{fmtINR(bill.vadakai, 2)}</td>
                   <td />
                 </tr>
               )}
@@ -259,7 +260,7 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
                 <td className="border-r border-gray-400" />
                 <td className="border-r border-gray-400" />
                 <td className="py-2 px-1 text-right border-r border-gray-400">
-                  <span className="text-red-600 font-extrabold text-sm">{bill.totalDue.toFixed(2)}</span>
+                  <span className="text-red-600 font-extrabold text-sm">{fmtINR(bill.totalDue, 2)}</span>
                 </td>
                 <td />
               </tr>
@@ -272,7 +273,7 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
                 <td className="border-r border-gray-400" />
                 <td className="border-r border-gray-400" />
                 <td className="py-1.5 px-1 text-right font-semibold">
-                  {bill.amountPaid > 0 ? bill.amountPaid.toFixed(2) : ''}
+                  {bill.amountPaid > 0 ? fmtINR(bill.amountPaid, 2) : ''}
                 </td>
               </tr>
 
@@ -286,10 +287,10 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
                   <td className="border-r border-gray-400" />
                   <td className="border-r border-gray-400" />
                   <td className={`py-1.5 px-1 text-right border-r border-gray-400 font-bold ${bill.newBalance > 0 ? 'text-red-600' : 'text-green-700'}`}>
-                    {bill.newBalance > 0 ? bill.newBalance.toFixed(2) : ''}
+                    {bill.newBalance > 0 ? fmtINR(bill.newBalance, 2) : ''}
                   </td>
                   <td className={`py-1.5 px-1 text-right font-bold ${bill.newBalance < 0 ? 'text-green-700' : ''}`}>
-                    {bill.newBalance < 0 ? Math.abs(bill.newBalance).toFixed(2) : ''}
+                    {bill.newBalance < 0 ? fmtINR(Math.abs(bill.newBalance), 2) : ''}
                   </td>
                 </tr>
               )}

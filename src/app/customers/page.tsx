@@ -9,6 +9,7 @@ import { toPng } from 'html-to-image';
 import { useRef } from 'react';
 import { useSettings } from '@/lib/useSettings';
 import clsx from 'clsx';
+import { fmtINR } from '@/lib/format';
 
 export default function CustomersPage() {
   const { customers, addCustomer, updateCustomer, loaded } = useCustomers();
@@ -158,7 +159,7 @@ export default function CustomersPage() {
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Customers</h1>
           <p className="text-gray-500 text-sm mt-1">
-            {customers.length} customer{customers.length !== 1 ? 's' : ''} &middot; ₹{totalPending.toFixed(0)} total pending
+            {customers.length} customer{customers.length !== 1 ? 's' : ''} &middot; ₹{fmtINR(totalPending)} total pending
           </p>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto">
@@ -302,7 +303,7 @@ export default function CustomersPage() {
               </div>
               <div>
                 <h3 className="font-bold text-gray-900">வரவு பதிவு</h3>
-                <p className="text-sm text-gray-500">{collectTarget.nickname || collectTarget.name} · Balance ₹{collectTarget.pendingBalance.toFixed(0)}</p>
+                <p className="text-sm text-gray-500">{collectTarget.nickname || collectTarget.name} · Balance ₹{fmtINR(collectTarget.pendingBalance)}</p>
               </div>
             </div>
             <div className="relative mb-3">
@@ -321,7 +322,7 @@ export default function CustomersPage() {
             </div>
             {collectAmount && parseFloat(collectAmount) > 0 && (
               <p className="text-xs text-gray-400 mb-3">
-                New balance: ₹{Math.max(0, collectTarget.pendingBalance - parseFloat(collectAmount)).toFixed(2)}
+                New balance: ₹{fmtINR(Math.max(0, collectTarget.pendingBalance - parseFloat(collectAmount)), 2)}
               </p>
             )}
             <div className="flex gap-3">
@@ -424,7 +425,7 @@ export default function CustomersPage() {
                   </div>
                   <div className="text-right shrink-0">
                     <div className={clsx("text-xl font-black", cust.pendingBalance > 0 ? "text-red-600" : "text-green-600")}>
-                      ₹{Math.abs(cust.pendingBalance).toFixed(0)}
+                      ₹{fmtINR(Math.abs(cust.pendingBalance))}
                     </div>
                     <div className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">
                       {cust.pendingBalance > 0 ? "Balance" : "Credit"}
