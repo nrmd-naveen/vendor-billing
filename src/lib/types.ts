@@ -28,6 +28,7 @@ export interface Sack {
 export interface BillItem {
   vegetableId: string;
   vegetableName: string;
+  description?: string; // custom name/description for this item
   emoji: string;
   pricePerKg: number;
   sacks: Sack[];
@@ -46,6 +47,7 @@ export interface Bill {
   items: BillItem[];
   subtotal: number;
   coolie: number;
+  vadakai: number;
   previousBalance: number;
   totalDue: number;
   amountPaid: number;

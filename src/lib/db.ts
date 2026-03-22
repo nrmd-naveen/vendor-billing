@@ -75,6 +75,7 @@ function initDb(db: Database.Database) {
       bill_id TEXT NOT NULL,
       vegetable_id TEXT NOT NULL,
       vegetable_name TEXT NOT NULL,
+      description TEXT,
       emoji TEXT DEFAULT '',
       price_per_kg REAL NOT NULL,
       total_weight REAL NOT NULL,
@@ -147,6 +148,11 @@ function runMigrations(db: Database.Database) {
   if (!billCols.includes('customer_nickname')) db.exec("ALTER TABLE bills ADD COLUMN customer_nickname TEXT DEFAULT ''");
   if (!billCols.includes('customer_prefix')) db.exec("ALTER TABLE bills ADD COLUMN customer_prefix TEXT DEFAULT 'திரு'");
   if (!billCols.includes('coolie')) db.exec('ALTER TABLE bills ADD COLUMN coolie REAL DEFAULT 0');
+  if (!billCols.includes('vadakai')) db.exec('ALTER TABLE bills ADD COLUMN vadakai REAL DEFAULT 0');
+
+  // bill_items table migrations
+  const billItemCols = (db.prepare('PRAGMA table_info(bill_items)').all() as { name: string }[]).map(c => c.name);
+  if (!billItemCols.includes('description')) db.exec('ALTER TABLE bill_items ADD COLUMN description TEXT');
 }
 
 // ── Company settings ─────────────────────────────────────────────────────────
@@ -230,13 +236,14 @@ interface DBVegetable {
 interface DBBill {
   id: string; bill_number: number; customer_id: string; customer_name: string;
   customer_nickname: string | null; customer_prefix: string | null;
-  date: string; subtotal: number; coolie: number;
+  date: string; subtotal: number; coolie: number; vadakai: number;
   previous_balance: number; total_due: number; amount_paid: number;
   new_balance: number; created_at: string;
 }
 
 interface DBBillItem {
   id: string; bill_id: string; vegetable_id: string; vegetable_name: string;
+  description: string | null;
   emoji: string; price_per_kg: number; total_weight: number; amount: number;
 }
 
@@ -277,6 +284,7 @@ function assembleBills(bills: DBBill[], items: DBBillItem[], sacks: DBSack[]): B
     if (!itemsMap.has(item.bill_id)) itemsMap.set(item.bill_id, []);
     itemsMap.get(item.bill_id)!.push({
       vegetableId: item.vegetable_id, vegetableName: item.vegetable_name,
+      description: item.description || undefined,
       emoji: item.emoji, pricePerKg: item.price_per_kg,
       totalWeight: item.total_weight, amount: item.amount,
       sacks: sacksMap.get(item.id) || [],
@@ -287,7 +295,7 @@ function assembleBills(bills: DBBill[], items: DBBillItem[], sacks: DBSack[]): B
     customerId: b.customer_id, customerName: b.customer_name,
     customerNickname: b.customer_nickname || undefined,
     customerPrefix: b.customer_prefix || 'திரு',
-    date: b.date, subtotal: b.subtotal, coolie: b.coolie || 0,
+    date: b.date, subtotal: b.subtotal, coolie: b.coolie || 0, vadakai: b.vadakai || 0,
     previousBalance: b.previous_balance, totalDue: b.total_due,
     amountPaid: b.amount_paid, newBalance: b.new_balance,
     createdAt: b.created_at, items: itemsMap.get(b.id) || [],
@@ -394,11 +402,11 @@ export function createBill(data: Omit<Bill, 'billNumber'> & { billNumber?: numbe
   const bill: Bill = { ...(data as Bill), billNumber };
 
   const insertBill = db.prepare(
-    `INSERT INTO bills (id, bill_number, customer_id, customer_name, customer_nickname, customer_prefix, date, subtotal, coolie, previous_balance, total_due, amount_paid, new_balance, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO bills (id, bill_number, customer_id, customer_name, customer_nickname, customer_prefix, date, subtotal, coolie, vadakai, previous_balance, total_due, amount_paid, new_balance, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   const insertItem = db.prepare(
-    `INSERT INTO bill_items (id, bill_id, vegetable_id, vegetable_name, emoji, price_per_kg, total_weight, amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO bill_items (id, bill_id, vegetable_id, vegetable_name, description, emoji, price_per_kg, total_weight, amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   const insertSack = db.prepare('INSERT INTO bill_sacks (id, bill_item_id, weight) VALUES (?, ?, ?)');
 
@@ -406,12 +414,12 @@ export function createBill(data: Omit<Bill, 'billNumber'> & { billNumber?: numbe
     insertBill.run(
       bill.id, bill.billNumber, bill.customerId, bill.customerName,
       bill.customerNickname ?? '', bill.customerPrefix ?? 'திரு',
-      bill.date, bill.subtotal, bill.coolie, bill.previousBalance,
+      bill.date, bill.subtotal, bill.coolie, bill.vadakai ?? 0, bill.previousBalance,
       bill.totalDue, bill.amountPaid, bill.newBalance, bill.createdAt
     );
     for (const item of bill.items) {
       const itemId = crypto.randomUUID();
-      insertItem.run(itemId, bill.id, item.vegetableId, item.vegetableName, item.emoji, item.pricePerKg, item.totalWeight, item.amount);
+      insertItem.run(itemId, bill.id, item.vegetableId, item.vegetableName, item.description ?? null, item.emoji, item.pricePerKg, item.totalWeight, item.amount);
       for (const sack of item.sacks) insertSack.run(sack.id, itemId, sack.weight);
     }
   })();
@@ -422,6 +430,49 @@ export function createBill(data: Omit<Bill, 'billNumber'> & { billNumber?: numbe
 export function deleteBill(id: string): void {
   getDb().prepare('DELETE FROM bills WHERE id = ?').run(id);
 }
+
+export function updateBill(id: string, data: Omit<Bill, 'id' | 'billNumber' | 'createdAt'>): Bill | null {
+  const db = getDb();
+  const existing = getBillById(id);
+  if (!existing) return null;
+
+  const updated: Bill = { ...existing, ...data };
+
+  const insertItem = db.prepare(
+    `INSERT INTO bill_items (id, bill_id, vegetable_id, vegetable_name, description, emoji, price_per_kg, total_weight, amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+  const insertSack = db.prepare('INSERT INTO bill_sacks (id, bill_item_id, weight) VALUES (?, ?, ?)');
+
+  db.transaction(() => {
+    // Delete old items (sacks cascade via FK)
+    db.prepare('DELETE FROM bill_items WHERE bill_id = ?').run(id);
+
+    // Update bill header
+    db.prepare(`
+      UPDATE bills SET
+        customer_id = ?, customer_name = ?, customer_nickname = ?, customer_prefix = ?,
+        date = ?, subtotal = ?, coolie = ?, vadakai = ?,
+        previous_balance = ?, total_due = ?, amount_paid = ?, new_balance = ?
+      WHERE id = ?
+    `).run(
+      updated.customerId, updated.customerName, updated.customerNickname ?? '',
+      updated.customerPrefix ?? 'திரு', updated.date,
+      updated.subtotal, updated.coolie, updated.vadakai ?? 0,
+      updated.previousBalance, updated.totalDue, updated.amountPaid, updated.newBalance,
+      id
+    );
+
+    // Re-insert items and sacks
+    for (const item of updated.items) {
+      const itemId = crypto.randomUUID();
+      insertItem.run(itemId, id, item.vegetableId, item.vegetableName, item.description ?? null, item.emoji, item.pricePerKg, item.totalWeight, item.amount);
+      for (const sack of item.sacks) insertSack.run(sack.id, itemId, sack.weight);
+    }
+  })();
+
+  return getBillById(id);
+}
+
 
 // ── Collections CRUD ──────────────────────────────────────────────────────────
 

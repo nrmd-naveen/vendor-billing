@@ -132,11 +132,11 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               <label className="block text-sm font-medium text-gray-700 mb-1">Prefix & Name</label>
               <div className="flex gap-2">
                 <select value={editForm.prefix} onChange={(e) => setEditForm({ ...editForm, prefix: e.target.value })}
-                  className="border border-gray-200 rounded-lg px-2 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white w-28 shrink-0">
+                  className="border border-gray-400 rounded-lg px-2 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white w-28 shrink-0 transition-colors">
                   {CUSTOMER_PREFIXES.map(p => <option key={p} value={p}>{p || '(none)'}</option>)}
                 </select>
                 <input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  className="flex-1 border border-gray-400 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -144,19 +144,19 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nickname (bill display)</label>
                 <input type="text" value={editForm.nickname} onChange={(e) => setEditForm({ ...editForm, nickname: e.target.value })}
                   placeholder="e.g. CM"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  className="w-full border border-gray-400 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Code</label>
                 <input type="number" min="1" value={editForm.code} onChange={(e) => setEditForm({ ...editForm, code: e.target.value })}
                   placeholder="e.g. 1"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  className="w-full border border-gray-400 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
               <input type="tel" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500" />
+                className="w-full border border-gray-400 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Balance Owed (₹)</label>
@@ -165,7 +165,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                 step="0.01"
                 value={editForm.pendingBalance}
                 onChange={(e) => setEditForm({ ...editForm, pendingBalance: e.target.value })}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full border border-gray-400 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
               />
             </div>
             <div className="flex gap-3">
@@ -259,7 +259,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                         onChange={(e) => setCollectAmount(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleCollect()}
                         placeholder="e.g. 5000"
-                        className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="w-full border border-gray-400 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
                         autoFocus
                       />
                     </div>

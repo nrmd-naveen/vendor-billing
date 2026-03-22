@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getBillById, deleteBill, getCustomerById, updateCustomer } from '@/lib/db';
+import { getBillById, deleteBill, getCustomerById, updateCustomer, updateBill } from '@/lib/db';
+import type { Bill } from '@/lib/types';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -10,6 +11,30 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   } catch (err) {
     console.error('[GET /api/bills/[id]]', err);
     return NextResponse.json({ error: 'Failed to fetch bill' }, { status: 500 });
+  }
+}
+
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const oldBill = getBillById(id);
+    if (!oldBill) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    const body = (await req.json()) as Omit<Bill, 'id' | 'billNumber' | 'createdAt'>;
+    const updatedBill = updateBill(id, body);
+    if (!updatedBill) return NextResponse.json({ error: 'Update failed' }, { status: 500 });
+
+    // Adjust customer balance by the delta between old and new newBalance
+    const customer = getCustomerById(oldBill.customerId);
+    if (customer) {
+      const delta = updatedBill.newBalance - oldBill.newBalance;
+      updateCustomer(oldBill.customerId, { pendingBalance: customer.pendingBalance + delta });
+    }
+
+    return NextResponse.json(updatedBill);
+  } catch (err) {
+    console.error('[PUT /api/bills/[id]]', err);
+    return NextResponse.json({ error: 'Failed to update bill' }, { status: 500 });
   }
 }
 

@@ -138,7 +138,18 @@ export function useBills() {
     [bills]
   );
 
-  return { bills, addBill, deleteBill, getBill, getBillsByCustomer, loaded };
+  const updateBillFn = useCallback(async (id: string, data: Omit<Bill, 'id' | 'billNumber' | 'createdAt'>) => {
+    const res = await fetch(`/api/bills/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const updated: Bill = await res.json();
+    setBills((prev) => prev.map((b) => (b.id === id ? updated : b)));
+    return updated;
+  }, []);
+
+  return { bills, addBill, updateBill: updateBillFn, deleteBill, getBill, getBillsByCustomer, loaded };
 }
 
 // ── Composite ────────────────────────────────────────────────────────────────

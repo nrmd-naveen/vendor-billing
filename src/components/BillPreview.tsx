@@ -161,7 +161,14 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
                   </td>
                   {/* விபரம் */}
                   <td className="py-1.5 px-2 border-r border-gray-400">
-                    <div className="font-semibold">{item.vegetableName}</div>
+                    <div className="flex flex-wrap items-baseline gap-1">
+                      <span className="font-bold text-[11px]">{item.vegetableName}</span>
+                      {item.description && (
+                        <span className="text-gray-700 font-semibold text-[11px]">
+                          {item.description}
+                        </span>
+                      )}
+                    </div>
                     {item.sacks.length > 0 && (
                       <div className="text-red-600 text-[11px] mt-0.5">
                         {item.sacks.map(s => s.weight).join(',')}
@@ -227,6 +234,18 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
                   <td className="border-r border-gray-400" />
                   <td className="border-r border-gray-400" />
                   <td className="py-1.5 px-1 text-right border-r border-gray-400">{bill.coolie.toFixed(2)}</td>
+                  <td />
+                </tr>
+              )}
+
+              {/* வாடகை */}
+              {bill.vadakai > 0 && (
+                <tr className="border-t border-gray-400">
+                  <td className="py-1.5 px-1 border-r border-gray-400" />
+                  <td className="py-1.5 px-2 border-r border-gray-400 font-semibold">வாடகை</td>
+                  <td className="border-r border-gray-400" />
+                  <td className="border-r border-gray-400" />
+                  <td className="py-1.5 px-1 text-right border-r border-gray-400">{bill.vadakai.toFixed(2)}</td>
                   <td />
                 </tr>
               )}

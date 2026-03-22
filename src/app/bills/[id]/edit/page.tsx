@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, useRef, useCallback, use } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useCustomers, useVegetables, useBills } from '@/lib/storage';
-import { BillItem, Customer, Sack, Vegetable } from '@/lib/types';
+import { useVegetables, useBills } from '@/lib/storage';
+import { BillItem, Sack, Vegetable } from '@/lib/types';
 import {
   ArrowLeft, Trash2, ChevronDown, IndianRupee, Save, AlertCircle, CornerDownLeft, Package, X
 } from 'lucide-react';
@@ -12,27 +12,21 @@ import clsx from 'clsx';
 
 interface DraftItem extends BillItem { _key: string; }
 
-function NewBillForm() {
+export default function EditBillPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { customers, updateCustomer, loaded: customersLoaded } = useCustomers();
   const { vegetables, loaded: vegsLoaded } = useVegetables();
-  const { addBill, loaded: billsLoaded } = useBills();
+  const { bills, updateBill, loaded: billsLoaded } = useBills();
 
   const [mounted, setMounted] = useState(false);
-  const [customerId, setCustomerId] = useState(searchParams.get('customerId') || '');
-  const [date, setDate] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; });
   const [items, setItems] = useState<DraftItem[]>([]);
+  const [date, setDate] = useState('');
   const [coolie, setCoolie] = useState('');
   const [vadakai, setVadakai] = useState('');
   const [amountPaid, setAmountPaid] = useState('');
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
-
-  // Customer search
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
-  const [customerDropdownIdx, setCustomerDropdownIdx] = useState(0);
+  const [initialized, setInitialized] = useState(false);
 
   // Vegetable entry
   const [entryVegSearch, setEntryVegSearch] = useState('');
@@ -49,45 +43,35 @@ function NewBillForm() {
   const rateRef = useRef<HTMLInputElement>(null);
   const sackWeightRef = useRef<HTMLInputElement>(null);
   const vegDropdownRef = useRef<HTMLDivElement>(null);
-  const custDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setMounted(true), []);
 
-  const customer: Customer | undefined = customers.find((c) => c.id === customerId);
+  const bill = bills.find((b) => b.id === id);
 
+  // Pre-populate form once bill loads
   useEffect(() => {
-    if (customer && !customerSearch) setCustomerSearch(customer.name);
-  }, [customer, customerSearch]);
+    if (bill && !initialized) {
+      setDate(bill.date);
+      setCoolie(bill.coolie > 0 ? String(bill.coolie) : '');
+      setVadakai(bill.vadakai > 0 ? String(bill.vadakai) : '');
+      setAmountPaid(bill.amountPaid > 0 ? String(bill.amountPaid) : '');
+      setItems(bill.items.map((item) => ({ ...item, _key: crypto.randomUUID() })));
+      setInitialized(true);
+    }
+  }, [bill, initialized]);
 
-  // Scroll highlighted veg item into view
   useEffect(() => {
     if (!showVegDropdown || !vegDropdownRef.current) return;
     const el = vegDropdownRef.current.children[vegDropdownIdx] as HTMLElement;
     if (el) el.scrollIntoView({ block: 'nearest' });
   }, [vegDropdownIdx, showVegDropdown]);
 
-  // Scroll highlighted customer item into view
-  useEffect(() => {
-    if (!showCustomerDropdown || !custDropdownRef.current) return;
-    const el = custDropdownRef.current.children[customerDropdownIdx] as HTMLElement;
-    if (el) el.scrollIntoView({ block: 'nearest' });
-  }, [customerDropdownIdx, showCustomerDropdown]);
-
-  const filteredCustomers = customers.filter((c) =>
-    !customerSearch ||
-    c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-    (c.phone && c.phone.includes(customerSearch)) ||
-    (c.code && String(c.code).includes(customerSearch)) ||
-    (c.nickname && c.nickname.toLowerCase().includes(customerSearch.toLowerCase()))
-  );
-
-  // Vegetable filter: pure number → match code; else text search
+  // Vegetable filter
   const filteredVegs = (() => {
     const s = entryVegSearch.trim();
     if (!s) return vegetables;
     const n = parseInt(s);
     if (!isNaN(n) && String(n) === s) {
-      // Pure number — code match first, then nothing else to avoid confusion
       const codeMatch = vegetables.filter(v => v.code === n);
       return codeMatch.length > 0 ? codeMatch : vegetables;
     }
@@ -99,18 +83,10 @@ function NewBillForm() {
     );
   })();
 
-  const pickCustomer = useCallback((c: Customer) => {
-    setCustomerId(c.id);
-    setCustomerSearch(c.name);
-    setShowCustomerDropdown(false);
-    setCustomerDropdownIdx(0);
-    setTimeout(() => vegSearchRef.current?.focus(), 50);
-  }, []);
-
   const pickVeg = useCallback((veg: Vegetable) => {
     setEntryVeg(veg);
     setEntryVegSearch(veg.name);
-    setEntryDescription(''); // Keep empty by default as requested
+    setEntryDescription('');
     setEntryRate(String(veg.defaultPrice));
     setShowVegDropdown(false);
     setVegDropdownIdx(0);
@@ -143,51 +119,17 @@ function NewBillForm() {
   }, [entryVeg, entryRate, entrySacks, entryDescription]);
 
   const removeItem = (key: string) => setItems((prev) => prev.filter((i) => i._key !== key));
-  const removeSack = (id: string) => setEntrySacks((prev) => prev.filter((s) => s.id !== id));
+  const removeSack = (sid: string) => setEntrySacks((prev) => prev.filter((s) => s.id !== sid));
 
-  // Customer dropdown keyboard nav
-  const handleCustomerKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setCustomerDropdownIdx(i => Math.min(i + 1, filteredCustomers.length - 1));
-      setShowCustomerDropdown(true);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setCustomerDropdownIdx(i => Math.max(i - 1, 0));
-    } else if (e.key === 'Enter') {
-      if (showCustomerDropdown && filteredCustomers[customerDropdownIdx]) {
-        e.preventDefault();
-        pickCustomer(filteredCustomers[customerDropdownIdx]);
-      }
-    } else if (e.key === 'Escape') {
-      setShowCustomerDropdown(false);
-    }
-  };
-
-  // Veg dropdown keyboard nav
   const handleVegSearchKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setVegDropdownIdx((i) => Math.min(i + 1, filteredVegs.length - 1));
-      setShowVegDropdown(true);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setVegDropdownIdx((i) => Math.max(i - 1, 0));
-    } else if (e.key === 'Enter' || e.key === 'Tab') {
-      if (showVegDropdown && filteredVegs[vegDropdownIdx]) {
-        e.preventDefault();
-        pickVeg(filteredVegs[vegDropdownIdx]);
-      }
-    } else if (e.key === 'Escape') {
-      setShowVegDropdown(false);
-    }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setVegDropdownIdx((i) => Math.min(i + 1, filteredVegs.length - 1)); setShowVegDropdown(true); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setVegDropdownIdx((i) => Math.max(i - 1, 0)); }
+    else if (e.key === 'Enter' || e.key === 'Tab') { if (showVegDropdown && filteredVegs[vegDropdownIdx]) { e.preventDefault(); pickVeg(filteredVegs[vegDropdownIdx]); } }
+    else if (e.key === 'Escape') setShowVegDropdown(false);
   };
 
   const handleDescriptionKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === 'Tab') {
-      e.preventDefault();
-      rateRef.current?.focus();
-    }
+    if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); rateRef.current?.focus(); }
   };
 
   const handleRateKey = (e: React.KeyboardEvent) => {
@@ -205,7 +147,7 @@ function NewBillForm() {
   const coolieVal = parseFloat(coolie) || 0;
   const vadakaiVal = parseFloat(vadakai) || 0;
   const subtotal = items.reduce((s, i) => s + i.amount, 0);
-  const previousBalance = customer?.pendingBalance ?? 0;
+  const previousBalance = bill?.previousBalance ?? 0;
   const totalDue = subtotal + coolieVal + vadakaiVal + previousBalance;
   const paid = parseFloat(amountPaid) || 0;
   const newBalance = totalDue - paid;
@@ -213,27 +155,27 @@ function NewBillForm() {
 
   const handleSave = async () => {
     const errs: string[] = [];
-    if (!customerId) errs.push('Please select a customer.');
     if (items.length === 0) errs.push('Add at least one item.');
     if (errs.length > 0) { setErrors(errs); return; }
     setErrors([]);
     setSaving(true);
     try {
-      const bill = await addBill({
-        customerId, customerName: customer!.name,
-        customerNickname: customer!.nickname,
-        customerPrefix: customer!.prefix || 'திரு',
+      await updateBill(id, {
+        customerId: bill!.customerId,
+        customerName: bill!.customerName,
+        customerNickname: bill!.customerNickname,
+        customerPrefix: bill!.customerPrefix,
         date,
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         items: items.map(({ _key, ...rest }) => rest),
-        subtotal, coolie: coolieVal, vadakai: vadakaiVal, previousBalance, totalDue, amountPaid: paid, newBalance,
+        subtotal, coolie: coolieVal, vadakai: vadakaiVal,
+        previousBalance, totalDue, amountPaid: paid, newBalance,
       });
-      router.push(`/bills/${bill.id}`);
-      updateCustomer(customerId, { pendingBalance: newBalance });
+      router.push(`/bills/${id}`);
     } finally { setSaving(false); }
   };
 
-  if (!mounted || !customersLoaded || !vegsLoaded || !billsLoaded) {
+  if (!mounted || !billsLoaded || !vegsLoaded) {
     return (
       <div className="p-6 lg:p-8 flex items-center justify-center min-h-64">
         <div className="text-gray-400 animate-pulse">Loading...</div>
@@ -241,13 +183,22 @@ function NewBillForm() {
     );
   }
 
+  if (!bill) {
+    return (
+      <div className="p-6 lg:p-8 text-center">
+        <p className="text-gray-500 mb-4">Bill not found.</p>
+        <Link href="/bills" className="text-green-600 hover:underline">Back to Bills</Link>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 lg:p-8 space-y-5 max-w-3xl">
       <div className="flex items-center gap-3">
-        <Link href="/bills" className="text-gray-400 hover:text-gray-600 p-1"><ArrowLeft className="w-5 h-5" /></Link>
+        <Link href={`/bills/${id}`} className="text-gray-400 hover:text-gray-600 p-1"><ArrowLeft className="w-5 h-5" /></Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">New Bill</h1>
-          <p className="text-gray-500 text-sm">Fill in details to create a bill</p>
+          <h1 className="text-2xl font-bold text-gray-900">Edit Bill #{bill.billNumber}</h1>
+          <p className="text-gray-500 text-sm">{bill.customerName}</p>
         </div>
       </div>
 
@@ -261,70 +212,16 @@ function NewBillForm() {
         </div>
       )}
 
-      {/* Customer & Date */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
-        <h2 className="font-semibold text-gray-900">1. Customer</h2>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div className="relative">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Customer <span className="text-red-500">*</span></label>
-            <div className="relative">
-              <input
-                type="text" value={customerSearch}
-                onChange={(e) => { setCustomerSearch(e.target.value); setCustomerId(''); setShowCustomerDropdown(true); setCustomerDropdownIdx(0); }}
-                onFocus={() => setShowCustomerDropdown(true)}
-                onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 150)}
-                onKeyDown={handleCustomerKey}
-                placeholder="Type name, nickname or code..."
-                className={clsx('w-full border rounded-lg px-3 py-2.5 pr-9 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors',
-                  customer ? 'border-green-500 bg-green-50' : 'border-gray-400')}
-              />
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
-            {showCustomerDropdown && filteredCustomers.length > 0 && (
-              <div ref={custDropdownRef} className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                {filteredCustomers.map((c, idx) => (
-                  <button key={c.id} type="button"
-                    onMouseDown={() => pickCustomer(c)}
-                    className={clsx('w-full text-left px-4 py-2.5 transition-colors border-b border-gray-50 last:border-0',
-                      idx === customerDropdownIdx ? 'bg-green-50' : 'hover:bg-green-50')}
-                  >
-                    <div className="flex items-center gap-2">
-                      {c.code && <span className="text-xs font-mono bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{c.code}</span>}
-                      <span className="font-medium text-gray-900 text-sm">{c.name}</span>
-                      {c.nickname && <span className="text-gray-500 text-xs">({c.nickname})</span>}
-                    </div>
-                    {c.phone && <div className="text-gray-400 text-xs">{c.phone}</div>}
-                    {c.pendingBalance > 0 && <div className="text-red-500 text-xs">Balance: ₹{c.pendingBalance.toFixed(0)}</div>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-              className="w-full border border-gray-400 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
-          </div>
-        </div>
-        {customer && (
-          <div className={clsx('rounded-lg px-4 py-3 flex items-center justify-between text-sm',
-            previousBalance > 0 ? 'bg-red-50 border border-red-100' : 'bg-green-50 border border-green-100')}>
-            <span className={previousBalance > 0 ? 'text-red-700' : 'text-green-700'}>
-              Previous balance for <strong>{customer.nickname || customer.name}</strong>
-              {customer.prefix && <span className="ml-1 text-xs opacity-70">({customer.prefix})</span>}
-            </span>
-            <span className={clsx('font-bold flex items-center gap-0.5', previousBalance > 0 ? 'text-red-700' : 'text-green-700')}>
-              <IndianRupee className="w-3.5 h-3.5" />
-              {Math.abs(previousBalance).toFixed(2)}
-              {previousBalance < 0 && ' (credit)'}
-            </span>
-          </div>
-        )}
+      {/* Date */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+          className="border border-gray-400 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
       </div>
 
       {/* Items */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
-        <h2 className="font-semibold text-gray-900">2. Items</h2>
+        <h2 className="font-semibold text-gray-900">Items</h2>
 
         {items.length > 0 && (
           <div className="rounded-xl border border-gray-200 overflow-hidden">
@@ -342,12 +239,10 @@ function NewBillForm() {
                 {items.map((item) => (
                   <tr key={item._key} className="hover:bg-gray-50">
                     <td className="px-3 py-2.5 text-gray-900">
-                      <div className="flex items-baseline gap-1.5 line-clamp-1">
+                      <div className="flex items-baseline gap-1.5">
                         <span className="font-bold">{item.emoji} {item.vegetableName}</span>
                         {item.description && (
-                          <span className="text-sm text-gray-500 font-normal">
-                            {item.description}
-                          </span>
+                          <span className="text-sm text-gray-500 font-normal">{item.description}</span>
                         )}
                       </div>
                     </td>
@@ -376,11 +271,11 @@ function NewBillForm() {
           </div>
         )}
 
-        {/* Entry row */}
+        {/* Add vegetable entry row */}
         <div className="space-y-2">
           <p className="text-xs text-gray-400 hidden sm:flex items-center gap-1">
             <CornerDownLeft className="w-3 h-3" />
-            Search veg (or type code number) → Enter for Name → Enter for Rate → Enter each sack weight →
+            Search veg → Enter for Name → Enter for Rate → Enter each sack weight →{' '}
             <kbd className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-xs font-mono">Enter</kbd> on empty weight to add item
           </p>
 
@@ -395,19 +290,16 @@ function NewBillForm() {
               onKeyDown={handleVegSearchKey}
               onFocus={() => setShowVegDropdown(true)}
               onBlur={() => setTimeout(() => setShowVegDropdown(false), 150)}
-              placeholder="🥦 Search vegetable or type code number..."
+              placeholder="🥦 Search vegetable to add..."
               className={clsx('w-full border rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors',
                 entryVeg ? 'border-green-500 bg-green-50' : 'border-gray-400')}
               autoComplete="off"
             />
-            {/* Description / Custom Name */}
             {entryVeg && (
               <div className="mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
                 <label className="block text-[10px] font-medium text-gray-400 mb-0.5 ml-1">Custom Name / Description (Optional)</label>
                 <input
-                  ref={descriptionRef}
-                  type="text"
-                  value={entryDescription}
+                  ref={descriptionRef} type="text" value={entryDescription}
                   onChange={(e) => setEntryDescription(e.target.value)}
                   onKeyDown={handleDescriptionKey}
                   placeholder="Override vegetable name or add detail..."
@@ -486,7 +378,7 @@ function NewBillForm() {
 
       {/* Payment */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
-        <h2 className="font-semibold text-gray-900">3. Payment</h2>
+        <h2 className="font-semibold text-gray-900">Payment</h2>
         <div className="flex flex-wrap gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">கூலி / Labour Charge (₹)</label>
@@ -507,6 +399,7 @@ function NewBillForm() {
             </div>
           </div>
         </div>
+
         <div className="space-y-2 text-sm">
           <div className="flex justify-between text-gray-700"><span>Today&apos;s Total</span><span className="font-semibold">₹{subtotal.toFixed(2)}</span></div>
           {coolieVal > 0 && <div className="flex justify-between text-gray-700"><span>கூலி</span><span className="font-semibold">₹{coolieVal.toFixed(2)}</span></div>}
@@ -519,6 +412,7 @@ function NewBillForm() {
           )}
           <div className="flex justify-between font-bold text-gray-900 border-t pt-2 text-base"><span>நிகர பாக்கி</span><span>₹{totalDue.toFixed(2)}</span></div>
         </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">உடன் வரவு — Amount Paid Now (₹)</label>
           <div className="relative">
@@ -537,6 +431,7 @@ function NewBillForm() {
             </div>
           )}
         </div>
+
         <div className={clsx('rounded-xl p-4 flex items-center justify-between',
           newBalance > 0 ? 'bg-red-50 border border-red-100' : newBalance < 0 ? 'bg-blue-50 border border-blue-100' : 'bg-green-50 border border-green-100')}>
           <div>
@@ -551,20 +446,12 @@ function NewBillForm() {
       </div>
 
       <div className="flex gap-3 pb-4">
-        <Link href="/bills" className="flex-1 sm:flex-none border border-gray-200 text-gray-700 px-6 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors text-center">Cancel</Link>
+        <Link href={`/bills/${id}`} className="flex-1 sm:flex-none border border-gray-200 text-gray-700 px-6 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors text-center">Cancel</Link>
         <button type="button" onClick={handleSave} disabled={saving}
           className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-sm disabled:opacity-60">
-          <Save className="w-4 h-4" />{saving ? 'Saving...' : 'Save Bill'}
+          <Save className="w-4 h-4" />{saving ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
     </div>
-  );
-}
-
-export default function NewBillPage() {
-  return (
-    <Suspense fallback={<div className="p-6 lg:p-8 flex items-center justify-center min-h-64"><div className="text-gray-400 animate-pulse">Loading...</div></div>}>
-      <NewBillForm />
-    </Suspense>
   );
 }

@@ -118,7 +118,7 @@ export default function VegetablesPage() {
                 placeholder="or type emoji"
                 value={EMOJI_OPTIONS.includes(addForm.emoji) ? '' : addForm.emoji}
                 onChange={(e) => setAddForm({ ...addForm, emoji: e.target.value })}
-                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="border border-gray-400 rounded-lg px-3 py-1.5 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
               />
             </div>
           </div>
@@ -130,7 +130,7 @@ export default function VegetablesPage() {
                 value={addForm.name}
                 onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
                 placeholder="e.g. கத்தரிக்காய்"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full border border-gray-400 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
                 autoFocus
               />
             </div>
@@ -141,7 +141,7 @@ export default function VegetablesPage() {
                 value={addForm.englishName}
                 onChange={(e) => setAddForm({ ...addForm, englishName: e.target.value })}
                 placeholder="e.g. Brinjal"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full border border-gray-400 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
               />
             </div>
             <div>
@@ -151,7 +151,7 @@ export default function VegetablesPage() {
                 value={addForm.nicknames}
                 onChange={(e) => setAddForm({ ...addForm, nicknames: e.target.value })}
                 placeholder="e.g. Eggplant, Katsiri"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full border border-gray-400 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
               />
             </div>
             <div>
@@ -161,7 +161,7 @@ export default function VegetablesPage() {
                 <input type="number" min="0" step="0.5" value={addForm.defaultPrice}
                   onChange={(e) => setAddForm({ ...addForm, defaultPrice: e.target.value })}
                   placeholder="0.00"
-                  className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  className="w-full border border-gray-400 rounded-lg pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
               </div>
             </div>
             <div>
@@ -169,7 +169,7 @@ export default function VegetablesPage() {
               <input type="number" min="1" value={addForm.code}
                 onChange={(e) => setAddForm({ ...addForm, code: e.target.value })}
                 placeholder="e.g. 1"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500" />
+                className="w-full border border-gray-400 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
               <p className="text-xs text-gray-400 mt-1">Type this number in bill to quickly select</p>
             </div>
           </div>
@@ -249,33 +249,33 @@ export default function VegetablesPage() {
                       value={editForm.name}
                       onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                       placeholder="Tamil Name"
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
                     />
                     <input
                       type="text"
                       value={editForm.englishName}
                       onChange={(e) => setEditForm({ ...editForm, englishName: e.target.value })}
                       placeholder="English Name"
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
                     />
                     <input
                       type="text"
                       value={editForm.nicknames}
                       onChange={(e) => setEditForm({ ...editForm, nicknames: e.target.value })}
                       placeholder="Nicknames (comma separated)"
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
                     />
                   </div>
                   <div className="relative">
                     <IndianRupee className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                     <input type="number" min="0" step="0.5" value={editForm.defaultPrice}
                       onChange={(e) => setEditForm({ ...editForm, defaultPrice: e.target.value })}
-                      className="w-full border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                      className="w-full border border-gray-400 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
                   </div>
                   <input type="number" min="1" value={editForm.code}
                     onChange={(e) => setEditForm({ ...editForm, code: e.target.value })}
                     placeholder="Code (number)"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                    className="w-full border border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
                   <div className="flex gap-2">
                     <button onClick={() => setEditingId(null)} className="flex-1 border border-gray-200 text-gray-600 py-1.5 rounded-lg text-sm hover:bg-gray-50">
                       <X className="w-4 h-4 mx-auto" />

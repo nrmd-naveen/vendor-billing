@@ -27,6 +27,19 @@ textarea {
   font-size: 16px;
 }
 
+/* Hide Chrome/Safari/Edge/Opera spinners */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Hide Firefox spinners */
+input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 @page {
   margin: 10mm;
 }

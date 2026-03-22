@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useBills } from '@/lib/storage';
 import BillPreview from '@/components/BillPreview';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Trash2, Pencil } from 'lucide-react';
 
 export default function BillDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -48,13 +48,22 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
           <ArrowLeft className="w-4 h-4" />
           Back to Bills
         </Link>
-        <button
-          onClick={() => setShowDelete(true)}
-          className="flex items-center gap-1.5 text-red-500 hover:text-red-700 text-sm border border-red-200 hover:border-red-300 px-3 py-1.5 rounded-lg transition-colors"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-          Delete Bill
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/bills/${id}/edit`}
+            className="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 text-sm border border-blue-200 hover:border-blue-300 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Edit Bill
+          </Link>
+          <button
+            onClick={() => setShowDelete(true)}
+            className="flex items-center gap-1.5 text-red-500 hover:text-red-700 text-sm border border-red-200 hover:border-red-300 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete Bill
+          </button>
+        </div>
       </div>
 
       {/* Bill preview */}
