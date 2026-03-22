@@ -67,6 +67,7 @@ export interface CompanySettings {
   billTitle: string;
   logoLeft: string;  // base64 data URL
   logoRight: string; // base64 data URL
+  useDefaultRates: boolean;
 }
 
 export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
@@ -81,6 +82,7 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   billTitle: 'விற்பனை பில்',
   logoLeft: '',
   logoRight: '',
+  useDefaultRates: true,
 };
 
 export const CUSTOMER_PREFIXES = ['திரு', 'திருமதி', 'செல்வி', 'செல்வன்', ''];

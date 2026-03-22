@@ -98,6 +98,9 @@ export default function SettingsPage() {
   const set = (key: keyof CompanySettings, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
+  const toggle = (key: keyof CompanySettings) =>
+    setForm((prev) => ({ ...prev, [key]: !prev[key] }));
+
   const handleSave = async () => {
     setSaving(true);
     await saveSettings(form);
@@ -188,6 +191,25 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Billing Preferences */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+        <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+          <SettingsIcon className="w-4 h-4" /> Billing Preferences
+        </h2>
+        <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+          <input
+            type="checkbox"
+            checked={!!form.useDefaultRates}
+            onChange={() => toggle('useDefaultRates')}
+            className="w-5 h-5 text-green-600 rounded focus:ring-green-500"
+          />
+          <div>
+            <div className="font-medium text-gray-900">Use Default Rates</div>
+            <div className="text-sm text-gray-500">Auto-fill price per kg from vegetable settings while billing</div>
+          </div>
+        </label>
       </div>
 
       {/* Database Backup */}

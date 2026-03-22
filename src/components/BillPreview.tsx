@@ -105,12 +105,12 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
             <div className="border-b border-gray-700 print:border-black grid grid-cols-3 items-center px-2 py-1.5">
               <div className="text-xs">
                 {settings.contact1Name && <div className="font-semibold">{settings.contact1Name}</div>}
-                {settings.contact1Phone && <div className="text-gray-600">{settings.contact1Phone}</div>}
+                {settings.contact1Phone && <div className="font-semibold">{settings.contact1Phone}</div>}
               </div>
               <div className="text-center font-bold text-sm">{settings.billTitle}</div>
               <div className="text-right text-xs">
                 {settings.contact2Name && <div className="font-semibold">{settings.contact2Name}</div>}
-                {settings.contact2Phone && <div className="text-gray-600">{settings.contact2Phone}</div>}
+                {settings.contact2Phone && <div className="font-semibold">{settings.contact2Phone}</div>}
               </div>
             </div>
           )}
@@ -155,7 +155,7 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
 
             <tbody>
               {bill.items.map((item, idx) => (
-                <tr key={idx} className="border-b border-gray-300 print:border-gray-400 align-top">
+                <tr key={idx} className="align-top">
                   {/* விலை */}
                   <td className="py-1.5 px-1 text-right border-r border-gray-400">
                     {fmtINR(item.pricePerKg, 2)}
@@ -175,7 +175,6 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
                         {item.sacks.map(s => s.weight).join(',')}
                       </div>
                     )}
-                    <div className="text-red-600 text-[11px]">மூடை : {item.sacks.length}</div>
                   </td>
                   {/* மூடை */}
                   <td className="py-1.5 px-1 text-center border-r border-gray-400">
@@ -196,7 +195,7 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
 
               {/* Empty rows to fill space */}
               {Array.from({ length: Math.max(0, 6 - bill.items.length) }).map((_, i) => (
-                <tr key={`empty-${i}`} className="border-b border-gray-200 h-7">
+                <tr key={`empty-${i}`} className="h-7">
                   {[0,1,2,3,4,5].map(ci => (
                     <td key={ci} className={`px-1 ${ci < 5 ? 'border-r border-gray-300' : ''}`}>&nbsp;</td>
                   ))}
