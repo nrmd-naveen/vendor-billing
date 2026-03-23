@@ -322,11 +322,16 @@ export function createCustomer(c: Customer): Customer {
 
 export function updateCustomer(id: string, data: Partial<Customer>): void {
   const db = getDb();
-  const map: Record<string, unknown> = {
-    name: data.name, phone: data.phone ?? null, nickname: data.nickname ?? null,
-    code: data.code ?? null, prefix: data.prefix ?? null,
-    pending_balance: data.pendingBalance, photo: data.photo,
-  };
+  const map: Record<string, unknown> = {};
+  
+  if (data.name !== undefined) map.name = data.name;
+  if ('phone' in data) map.phone = data.phone ?? null;
+  if ('nickname' in data) map.nickname = data.nickname ?? null;
+  if ('code' in data) map.code = data.code ?? null;
+  if ('prefix' in data) map.prefix = data.prefix ?? null;
+  if (data.pendingBalance !== undefined) map.pending_balance = data.pendingBalance;
+  if ('photo' in data) map.photo = data.photo ?? null;
+
   for (const [col, val] of Object.entries(map)) {
     if (val !== undefined) db.prepare(`UPDATE customers SET ${col} = ? WHERE id = ?`).run(val, id);
   }

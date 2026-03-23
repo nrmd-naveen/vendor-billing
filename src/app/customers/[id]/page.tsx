@@ -123,9 +123,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
     if (!editForm.name.trim()) return;
     updateCustomer(id, {
       name: editForm.name.trim(),
-      nickname: editForm.nickname.trim() || undefined,
-      code: editForm.code ? parseInt(editForm.code) : undefined,
-      phone: editForm.phone.trim() || undefined,
+      nickname: editForm.nickname.trim(),
+      code: editForm.code ? parseInt(editForm.code) : null as unknown as number,
+      phone: editForm.phone.trim(),
       prefix: editForm.prefix || 'திரு',
       pendingBalance: parseFloat(editForm.pendingBalance) || 0,
     });
