@@ -195,7 +195,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
           <div className="space-y-4">
             <h2 className="font-bold text-lg text-gray-900">Edit Customer</h2>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Prefix & Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Prefix & Name (bill display)</label>
               <div className="flex gap-2">
                 <select value={editForm.prefix} onChange={(e) => setEditForm({ ...editForm, prefix: e.target.value })}
                   className="border border-gray-400 rounded-lg px-2 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white w-28 shrink-0 transition-colors">
@@ -207,7 +207,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nickname (bill display)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nickname (search only)</label>
                 <input type="text" value={editForm.nickname} onChange={(e) => setEditForm({ ...editForm, nickname: e.target.value })}
                   placeholder="e.g. CM"
                   className="w-full border border-gray-400 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />

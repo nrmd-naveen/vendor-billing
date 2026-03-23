@@ -22,16 +22,33 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
   const totalSacks = bill.items.reduce((s, i) => s + i.sacks.length, 0);
   const totalWeight = bill.items.reduce((s, i) => s + i.totalWeight, 0);
 
-  const displayName = bill.customerNickname || bill.customerName;
+  const displayName = bill.customerName;
 
-  const handleDownload = async () => {
+  const handleDownload = async (format: 'pdf' | 'photo') => {
     const el = document.getElementById('bill-print-area');
     if (!el) return;
-    const dataUrl = await toPng(el, { cacheBust: true, backgroundColor: '#ffffff' });
-    const a = document.createElement('a');
-    a.download = `bill-${bill.billNumber}.png`;
-    a.href = dataUrl;
-    a.click();
+    const elWidth = el.offsetWidth;
+    const elHeight = el.offsetHeight;
+    const dataUrl = await toPng(el, { cacheBust: true, backgroundColor: '#ffffff', quality: 1, pixelRatio: 2 });
+    
+    if (format === 'photo') {
+      const a = document.createElement('a');
+      a.download = `bill-${bill.billNumber}.png`;
+      a.href = dataUrl;
+      a.click();
+    } else {
+      const { jsPDF } = await import('jspdf');
+      // HTML px is 1/96 inch, PDF pt is 1/72 inch. So 1px = 0.75pt
+      const pdfWidth = elWidth * 0.75;
+      const pdfHeight = elHeight * 0.75;
+      const pdf = new jsPDF({
+        orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
+        unit: 'pt',
+        format: [pdfWidth, pdfHeight]
+      });
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`bill-${bill.billNumber}.pdf`);
+    }
   };
 
   return (
@@ -39,7 +56,14 @@ export default function BillPreview({ bill, showPrintButton = true }: BillPrevie
       {showPrintButton && (
         <div className="flex justify-end gap-2 p-4 border-b border-gray-100 print:hidden">
           <button
-            onClick={handleDownload}
+            onClick={() => handleDownload('pdf')}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Save PDF
+          </button>
+          <button
+            onClick={() => handleDownload('photo')}
             className="flex items-center gap-2 bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium transition-colors"
           >
             <Download className="w-4 h-4" />

@@ -169,6 +169,7 @@ const SETTINGS_MAP: Record<keyof CompanySettings, string> = {
   billTitle: 'bill_title',
   logoLeft: 'logo_left',
   logoRight: 'logo_right',
+  useDefaultRates: 'use_default_rates',
 };
 
 const SETTINGS_DEFAULTS: Record<string, string> = {
@@ -183,6 +184,7 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   bill_title: DEFAULT_COMPANY_SETTINGS.billTitle,
   logo_left: DEFAULT_COMPANY_SETTINGS.logoLeft,
   logo_right: DEFAULT_COMPANY_SETTINGS.logoRight,
+  use_default_rates: String(DEFAULT_COMPANY_SETTINGS.useDefaultRates),
 };
 
 export function getCompanySettings(): CompanySettings {
@@ -206,6 +208,7 @@ export function getCompanySettings(): CompanySettings {
     billTitle: map.bill_title,
     logoLeft: map.logo_left,
     logoRight: map.logo_right,
+    useDefaultRates: map.use_default_rates !== 'false',
   };
 }
 
@@ -214,7 +217,7 @@ export function saveCompanySettings(s: CompanySettings): void {
   const upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
   const tx = db.transaction(() => {
     for (const [field, dbKey] of Object.entries(SETTINGS_MAP)) {
-      upsert.run(dbKey, (s as unknown as Record<string, string>)[field] ?? '');
+      upsert.run(dbKey, String((s as unknown as Record<string, unknown>)[field] ?? ''));
     }
   });
   tx();

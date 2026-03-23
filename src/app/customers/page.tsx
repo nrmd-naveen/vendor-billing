@@ -94,7 +94,7 @@ export default function CustomersPage() {
     }
   };
 
-  const handleDownloadSelected = async () => {
+  const handleDownloadSelected = async (format: 'pdf' | 'photo') => {
     if (selectedIds.size === 0) return;
     setDownloading(true);
     
@@ -108,13 +108,31 @@ export default function CustomersPage() {
     try {
       // Temporarily show the report container
       el.style.display = 'block';
-      const dataUrl = await toPng(el, { cacheBust: true, backgroundColor: '#ffffff', quality: 1 });
+      const elWidth = el.offsetWidth;
+      const elHeight = el.offsetHeight;
+      const dataUrl = await toPng(el, { cacheBust: true, backgroundColor: '#ffffff', quality: 1, pixelRatio: 2 });
       el.style.display = 'none';
 
-      const a = document.createElement('a');
-      a.download = `customer-balances-${new Date().toISOString().split('T')[0]}.png`;
-      a.href = dataUrl;
-      a.click();
+      const fileName = `customer-balances-${new Date().toISOString().split('T')[0]}`;
+
+      if (format === 'photo') {
+        const a = document.createElement('a');
+        a.download = `${fileName}.png`;
+        a.href = dataUrl;
+        a.click();
+      } else {
+        const { jsPDF } = await import('jspdf');
+        // HTML px is 1/96 inch, PDF pt is 1/72 inch. So 1px = 0.75pt
+        const pdfWidth = elWidth * 0.75;
+        const pdfHeight = elHeight * 0.75;
+        const pdf = new jsPDF({
+          orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
+          unit: 'pt',
+          format: [pdfWidth, pdfHeight]
+        });
+        pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`${fileName}.pdf`);
+      }
     } catch (err) {
       console.error('Failed to generate image', err);
     } finally {
@@ -173,12 +191,20 @@ export default function CustomersPage() {
                 Cancel
               </button>
               <button
-                onClick={handleDownloadSelected}
+                onClick={() => handleDownloadSelected('pdf')}
                 disabled={selectedIds.size === 0 || downloading}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50"
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50"
               >
                 <Download className="w-4 h-4" />
-                {downloading ? 'Generating...' : `Download (${selectedIds.size})`}
+                {downloading ? 'Wait...' : `PDF (${selectedIds.size})`}
+              </button>
+              <button
+                onClick={() => handleDownloadSelected('photo')}
+                disabled={selectedIds.size === 0 || downloading}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50"
+              >
+                <Download className="w-4 h-4" />
+                {downloading ? 'Wait...' : `Photo (${selectedIds.size})`}
               </button>
             </>
           ) : (
@@ -211,7 +237,7 @@ export default function CustomersPage() {
 
               {/* Prefix + Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Prefix & Name <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Prefix & Name (bill display) <span className="text-red-500">*</span></label>
                 <div className="flex gap-2">
                   <select value={form.prefix} onChange={(e) => setForm({ ...form, prefix: e.target.value })}
                     className="border border-gray-200 rounded-lg px-2 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white w-28 shrink-0">
@@ -226,7 +252,7 @@ export default function CustomersPage() {
               {/* Nickname + Code */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nickname (for bill)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nickname (search only)</label>
                   <input type="text" value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })}
                     placeholder="e.g. CM"
                     className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500" />
