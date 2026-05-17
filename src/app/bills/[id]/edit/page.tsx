@@ -93,7 +93,7 @@ export default function EditBillPage({ params }: { params: Promise<{ id: string 
     setEntryRate(settings.useDefaultRates ? String(veg.defaultPrice) : '');
     setShowVegDropdown(false);
     setVegDropdownIdx(0);
-    setTimeout(() => descriptionRef.current?.focus(), 0);
+    setTimeout(() => sackWeightRef.current?.focus(), 0);
   }, [settings.useDefaultRates]);
 
   const addSack = useCallback(() => {
