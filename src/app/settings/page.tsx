@@ -1,15 +1,50 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSettings } from '@/lib/useSettings';
 import { CompanySettings } from '@/lib/types';
-import { Save, Upload, X, Settings as SettingsIcon, Building2, Download, DatabaseBackup, AlertTriangle } from 'lucide-react';
+import {
+  Save, Upload, X, Settings as SettingsIcon, Building2,
+  Download, DatabaseBackup, AlertTriangle, RotateCcw,
+  ChevronDown, ChevronUp, Clock, HardDrive,
+} from 'lucide-react';
+import type { DbStats } from '@/lib/db';
 
-function ImageUpload({
-  label, value, onChange,
-}: { label: string; value: string; onChange: (v: string) => void }) {
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+interface AnalyzeResult {
+  uploaded: DbStats;
+  current: DbStats;
+  fileSize: number;
+  fileName: string;
+}
+
+interface BackupInfo {
+  filename: string;
+  timestamp: number;
+  size: number;
+  createdAt: string;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function fmtBytes(b: number): string {
+  if (b < 1024) return b + ' B';
+  if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+  return (b / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function ImageUpload({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
-
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -17,33 +52,20 @@ function ImageUpload({
     reader.onload = (ev) => onChange(ev.target?.result as string);
     reader.readAsDataURL(file);
   };
-
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       <div className="flex items-center gap-3">
         <div className="w-20 h-20 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center bg-gray-50 overflow-hidden shrink-0">
-          {value ? (
-            <img src={value} alt="logo" className="w-full h-full object-contain" />
-          ) : (
-            <Upload className="w-6 h-6 text-gray-300" />
-          )}
+          {value ? <img src={value} alt="logo" className="w-full h-full object-contain" /> : <Upload className="w-6 h-6 text-gray-300" />}
         </div>
         <div className="space-y-2">
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="flex items-center gap-2 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-sm hover:bg-gray-50 transition-colors"
-          >
+          <button type="button" onClick={() => inputRef.current?.click()} className="flex items-center gap-2 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-sm hover:bg-gray-50 transition-colors">
             <Upload className="w-4 h-4" />
             {value ? 'Change Image' : 'Upload Image'}
           </button>
           {value && (
-            <button
-              type="button"
-              onClick={() => onChange('')}
-              className="flex items-center gap-1.5 text-red-500 text-xs hover:text-red-700 transition-colors"
-            >
+            <button type="button" onClick={() => onChange('')} className="flex items-center gap-1.5 text-red-500 text-xs hover:text-red-700 transition-colors">
               <X className="w-3 h-3" /> Remove
             </button>
           )}
@@ -55,51 +77,174 @@ function ImageUpload({
   );
 }
 
+function StatRow({ label, cur, next }: { label: string; cur: number; next: number }) {
+  const diff = next - cur;
+  return (
+    <div className="flex items-center gap-2 text-sm py-1">
+      <span className="text-gray-500 w-24 shrink-0">{label}</span>
+      <span className="font-medium text-gray-900 w-10 text-right">{cur}</span>
+      <span className="text-gray-300 mx-1">→</span>
+      <span className={`font-medium w-10 text-left ${diff > 0 ? 'text-green-600' : diff < 0 ? 'text-orange-600' : 'text-gray-900'}`}>{next}</span>
+      {diff !== 0 && (
+        <span className={`text-xs ${diff > 0 ? 'text-green-500' : 'text-orange-500'}`}>
+          ({diff > 0 ? '+' : ''}{diff})
+        </span>
+      )}
+    </div>
+  );
+}
+
+function RestoreConfirmModal({
+  result, onConfirm, onCancel, loading,
+}: {
+  result: AnalyzeResult;
+  onConfirm: () => void;
+  onCancel: () => void;
+  loading: boolean;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+            <AlertTriangle className="w-5 h-5 text-orange-600" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-gray-900 text-lg">Restore Database?</h2>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {result.fileName} &bull; {fmtBytes(result.fileSize)}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-gray-50 rounded-xl p-4">
+          <div className="flex items-center justify-between text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 pb-1 border-b border-gray-200">
+            <span>Data</span>
+            <div className="flex gap-6">
+              <span>Current</span>
+              <span>After restore</span>
+            </div>
+          </div>
+          <StatRow label="Customers" cur={result.current.customers} next={result.uploaded.customers} />
+          <StatRow label="Bills" cur={result.current.bills} next={result.uploaded.bills} />
+          <StatRow label="Vegetables" cur={result.current.vegetables} next={result.uploaded.vegetables} />
+          <StatRow label="Collections" cur={result.current.collections} next={result.uploaded.collections} />
+          {result.uploaded.dateRange && (
+            <p className="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-200">
+              Bills from <strong>{result.uploaded.dateRange.from}</strong> to <strong>{result.uploaded.dateRange.to}</strong>
+            </p>
+          )}
+        </div>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm text-amber-800 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>All current data will be <strong>permanently replaced</strong>. A backup of the current state is saved automatically so you can undo this.</span>
+        </div>
+
+        <div className="flex gap-3 pt-1">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-60"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            <Upload className="w-4 h-4" />
+            {loading ? 'Restoring…' : 'Replace & Restore'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RevertConfirmModal({
+  backup, onConfirm, onCancel, loading,
+}: {
+  backup: BackupInfo;
+  onConfirm: () => void;
+  onCancel: () => void;
+  loading: boolean;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+            <RotateCcw className="w-5 h-5 text-blue-600" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-gray-900 text-lg">Revert to Backup?</h2>
+            <p className="text-sm text-gray-500 mt-0.5">{fmtDate(backup.createdAt)}</p>
+          </div>
+        </div>
+
+        <p className="text-sm text-gray-600">
+          This will replace your current database ({fmtBytes(backup.size)}) with the selected backup.
+          Your current state is saved automatically before reverting, so you can undo this too.
+        </p>
+
+        <div className="flex gap-3">
+          <button type="button" onClick={onCancel} disabled={loading} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-60">
+            Cancel
+          </button>
+          <button type="button" onClick={onConfirm} disabled={loading} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+            <RotateCcw className="w-4 h-4" />
+            {loading ? 'Reverting…' : 'Revert Now'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
 export default function SettingsPage() {
   const { settings, saveSettings, loaded } = useSettings();
   const [form, setForm] = useState<CompanySettings>(settings);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [dbStatus, setDbStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+
+  // DB restore state
+  const dbFileRef = useRef<HTMLInputElement>(null);
+  const [dbStatus, setDbStatus] = useState<'idle' | 'analyzing' | 'success' | 'error'>('idle');
   const [dbError, setDbError] = useState('');
-  const dbInputRef = useRef<HTMLInputElement>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [analyzeResult, setAnalyzeResult] = useState<AnalyzeResult | null>(null);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [undoBackupFile, setUndoBackupFile] = useState<string | null>(null);
+  const [undoing, setUndoing] = useState(false);
 
-  const handleDownloadDb = () => {
-    window.location.href = '/api/db';
-  };
+  // Backups list state
+  const [backups, setBackups] = useState<BackupInfo[]>([]);
+  const [showBackups, setShowBackups] = useState(false);
+  const [revertTarget, setRevertTarget] = useState<BackupInfo | null>(null);
+  const [reverting, setReverting] = useState(false);
 
-  const handleUploadDb = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setDbStatus('uploading');
-    setDbError('');
+  const loadBackups = useCallback(async () => {
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await fetch('/api/db', { method: 'POST', body: formData });
-      if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json.error || 'Upload failed');
+      const res = await fetch('/api/db/backups');
+      if (res.ok) {
+        const data = await res.json();
+        setBackups(data.backups ?? []);
       }
-      setDbStatus('success');
-      setTimeout(() => { setDbStatus('idle'); window.location.reload(); }, 1500);
-    } catch (err) {
-      setDbError(err instanceof Error ? err.message : 'Upload failed');
-      setDbStatus('error');
-    } finally {
-      e.target.value = '';
-    }
-  };
+    } catch { /* ignore */ }
+  }, []);
 
-  useEffect(() => {
-    if (loaded) setForm(settings);
-  }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (loaded) setForm(settings); }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadBackups(); }, [loadBackups]);
 
-  const set = (key: keyof CompanySettings, value: string) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
-
-  const toggle = (key: keyof CompanySettings) =>
-    setForm((prev) => ({ ...prev, [key]: !prev[key] }));
+  const set = (key: keyof CompanySettings, value: string) => setForm(prev => ({ ...prev, [key]: value }));
+  const toggle = (key: keyof CompanySettings) => setForm(prev => ({ ...prev, [key]: !prev[key] }));
 
   const handleSave = async () => {
     setSaving(true);
@@ -109,10 +254,115 @@ export default function SettingsPage() {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  // Step 1: file selected → analyze
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setPendingFile(file);
+    setDbStatus('analyzing');
+    setDbError('');
+
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/db/analyze', { method: 'POST', body: fd });
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Analysis failed');
+      setAnalyzeResult(await res.json());
+      setDbStatus('idle');
+      setShowRestoreConfirm(true);
+    } catch (err) {
+      setDbError(err instanceof Error ? err.message : 'Failed to read the file');
+      setDbStatus('error');
+      setPendingFile(null);
+    }
+  };
+
+  // Step 2: user confirmed → restore
+  const handleConfirmRestore = async () => {
+    if (!pendingFile) return;
+    setConfirming(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', pendingFile);
+      const res = await fetch('/api/db', { method: 'POST', body: fd });
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Restore failed');
+      const data = await res.json();
+      setUndoBackupFile(data.backupFile ?? null);
+      setDbStatus('success');
+      setShowRestoreConfirm(false);
+      setPendingFile(null);
+      setAnalyzeResult(null);
+      await loadBackups();
+      setTimeout(() => { window.location.reload(); }, 2500);
+    } catch (err) {
+      setDbError(err instanceof Error ? err.message : 'Restore failed');
+      setDbStatus('error');
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  const cancelRestore = () => {
+    setShowRestoreConfirm(false);
+    setPendingFile(null);
+    setAnalyzeResult(null);
+  };
+
+  // Undo last restore
+  const handleUndo = async () => {
+    if (!undoBackupFile) return;
+    setUndoing(true);
+    try {
+      const res = await fetch('/api/db/backups/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: undoBackupFile }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Undo failed');
+      const data = await res.json();
+      setUndoBackupFile(data.backupFile ?? null);
+      setDbStatus('idle');
+      await loadBackups();
+      window.location.reload();
+    } catch (err) {
+      setDbError(err instanceof Error ? err.message : 'Undo failed');
+      setDbStatus('error');
+    } finally {
+      setUndoing(false);
+    }
+  };
+
+  // Revert to a listed backup
+  const handleRevertBackup = async () => {
+    if (!revertTarget) return;
+    setReverting(true);
+    try {
+      const res = await fetch('/api/db/backups/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: revertTarget.filename }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Revert failed');
+      const data = await res.json();
+      setUndoBackupFile(data.backupFile ?? null);
+      setRevertTarget(null);
+      setDbStatus('success');
+      await loadBackups();
+      setTimeout(() => { window.location.reload(); }, 2500);
+    } catch (err) {
+      setDbError(err instanceof Error ? err.message : 'Revert failed');
+      setDbStatus('error');
+    } finally {
+      setReverting(false);
+    }
+  };
+
   if (!loaded) {
     return (
       <div className="p-6 lg:p-8 flex items-center justify-center min-h-64">
-        <div className="text-gray-400 animate-pulse">Loading...</div>
+        <div className="text-gray-400 animate-pulse">Loading…</div>
       </div>
     );
   }
@@ -172,7 +422,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Bill preview snippet */}
+      {/* Bill preview */}
       <div className="bg-gray-50 rounded-xl border border-gray-100 p-4">
         <p className="text-xs text-gray-500 mb-3 font-medium uppercase tracking-wide">Bill Header Preview</p>
         <div className="bg-white rounded-lg border border-gray-200 p-3 text-center" style={{ fontFamily: "'Noto Sans Tamil', Arial, sans-serif" }}>
@@ -212,47 +462,123 @@ export default function SettingsPage() {
         </label>
       </div>
 
-      {/* Database Backup */}
+      {/* ── Database Backup ── */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
         <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-          <DatabaseBackup className="w-4 h-4" /> Database Backup
+          <DatabaseBackup className="w-4 h-4" /> Database Backup &amp; Restore
         </h2>
         <p className="text-sm text-gray-500">
-          Download a copy of your entire database or restore from a previous backup.
+          Download your database for safekeeping, or upload a previous backup to restore it.
         </p>
+
+        {/* Actions */}
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={handleDownloadDb}
+            onClick={() => { window.location.href = '/api/db'; }}
             className="flex items-center gap-2 border border-green-200 text-green-700 bg-green-50 hover:bg-green-100 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
           >
             <Download className="w-4 h-4" />
             Download Database
           </button>
+
           <button
             type="button"
-            onClick={() => dbInputRef.current?.click()}
-            disabled={dbStatus === 'uploading'}
+            onClick={() => dbFileRef.current?.click()}
+            disabled={dbStatus === 'analyzing'}
             className="flex items-center gap-2 border border-orange-200 text-orange-700 bg-orange-50 hover:bg-orange-100 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-60"
           >
             <Upload className="w-4 h-4" />
-            {dbStatus === 'uploading' ? 'Restoring...' : dbStatus === 'success' ? '✓ Restored!' : 'Restore from Backup'}
+            {dbStatus === 'analyzing' ? 'Analyzing…' : 'Restore from File'}
           </button>
-          <input ref={dbInputRef} type="file" accept=".db" className="hidden" onChange={handleUploadDb} />
+
+          <input
+            ref={dbFileRef}
+            type="file"
+            accept=".db"
+            className="hidden"
+            onChange={handleFileSelected}
+          />
         </div>
+
+        {/* Success banner with Undo */}
+        {dbStatus === 'success' && (
+          <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg px-3 py-2.5">
+            <span className="text-green-700 text-sm font-medium flex-1">Database restored successfully. Reloading…</span>
+            {undoBackupFile && (
+              <button
+                type="button"
+                onClick={handleUndo}
+                disabled={undoing}
+                className="flex items-center gap-1.5 text-xs font-medium text-green-700 border border-green-300 bg-white hover:bg-green-50 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-60 shrink-0"
+              >
+                <RotateCcw className="w-3 h-3" />
+                {undoing ? 'Undoing…' : 'Undo Restore'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Error banner */}
         {dbStatus === 'error' && (
           <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-100 rounded-lg px-3 py-2">
             <AlertTriangle className="w-4 h-4 shrink-0" />
-            {dbError}
+            <span className="flex-1">{dbError}</span>
+            <button type="button" onClick={() => setDbStatus('idle')} className="text-red-400 hover:text-red-600">
+              <X className="w-4 h-4" />
+            </button>
           </div>
         )}
+
+        {/* Automatic backups list */}
+        {backups.length > 0 && (
+          <div className="border border-gray-100 rounded-xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowBackups(v => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-sm font-medium text-gray-700"
+            >
+              <span className="flex items-center gap-2">
+                <Clock className="w-3.5 h-3.5 text-gray-400" />
+                {backups.length} Automatic Backup{backups.length !== 1 ? 's' : ''}
+                <span className="text-xs text-gray-400 font-normal">(kept last 5)</span>
+              </span>
+              {showBackups ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+            </button>
+
+            {showBackups && (
+              <div className="divide-y divide-gray-50">
+                {backups.map((bk) => (
+                  <div key={bk.filename} className="flex items-center justify-between px-4 py-3">
+                    <div>
+                      <div className="text-sm text-gray-800 font-medium">{fmtDate(bk.createdAt)}</div>
+                      <div className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                        <HardDrive className="w-3 h-3" />
+                        {fmtBytes(bk.size)}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setRevertTarget(bk)}
+                      className="flex items-center gap-1.5 text-xs font-medium text-blue-600 border border-blue-200 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      Revert
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <p className="text-xs text-gray-400 flex items-center gap-1">
-          <AlertTriangle className="w-3 h-3" />
-          Restoring will replace all current data. A backup is saved automatically before restore.
+          <AlertTriangle className="w-3 h-3 shrink-0" />
+          A backup is saved automatically before every restore, so you can always undo.
         </p>
       </div>
 
-      {/* Save */}
+      {/* Save settings button */}
       <div className="flex gap-3">
         <button
           type="button"
@@ -261,9 +587,28 @@ export default function SettingsPage() {
           className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-sm disabled:opacity-60"
         >
           <Save className="w-4 h-4" />
-          {saving ? 'Saving...' : saved ? '✓ Saved!' : 'Save Settings'}
+          {saving ? 'Saving…' : saved ? '✓ Saved!' : 'Save Settings'}
         </button>
       </div>
+
+      {/* Modals */}
+      {showRestoreConfirm && analyzeResult && (
+        <RestoreConfirmModal
+          result={analyzeResult}
+          onConfirm={handleConfirmRestore}
+          onCancel={cancelRestore}
+          loading={confirming}
+        />
+      )}
+
+      {revertTarget && (
+        <RevertConfirmModal
+          backup={revertTarget}
+          onConfirm={handleRevertBackup}
+          onCancel={() => setRevertTarget(null)}
+          loading={reverting}
+        />
+      )}
     </div>
   );
 }

@@ -1,16 +1,17 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { getDbPath, closeDb } from '@/lib/db';
+import { getDbPath, closeDb, checkpointWal } from '@/lib/db';
 
 // GET /api/db — download the database file
 export function GET() {
   try {
     const dbPath = getDbPath();
-
     if (!fs.existsSync(dbPath)) {
       return NextResponse.json({ error: 'Database file not found' }, { status: 404 });
     }
+    // Flush WAL into the main file so the download includes all committed data
+    checkpointWal();
 
     const buffer = fs.readFileSync(dbPath);
     const filename = `backup-${new Date().toISOString().slice(0, 10)}.db`;
@@ -40,44 +41,49 @@ export async function POST(req: Request) {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
 
-    if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-    }
-
-    if (!file.name.endsWith('.db')) {
-      return NextResponse.json({ error: 'Only .db files are allowed' }, { status: 400 });
-    }
+    if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    if (!file.name.endsWith('.db')) return NextResponse.json({ error: 'Only .db files are allowed' }, { status: 400 });
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Validate SQLite magic bytes: first 16 bytes should be "SQLite format 3\000"
-    const magic = buffer.slice(0, 15).toString('utf8');
-    if (magic !== 'SQLite format 3') {
+    // Validate SQLite magic bytes
+    if (buffer.slice(0, 15).toString('utf8') !== 'SQLite format 3') {
       return NextResponse.json({ error: 'Invalid SQLite database file' }, { status: 400 });
     }
 
     const dbPath = getDbPath();
+    const dir = path.dirname(dbPath);
+    const baseName = path.basename(dbPath, '.db');
+    const timestamp = Date.now();
+    const backupFileName = `${baseName}.backup-${timestamp}.db`;
+    const backupPath = path.join(dir, backupFileName);
 
-    // Back up existing DB before replacing
-    const backupPath = dbPath.replace('.db', `.backup-${Date.now()}.db`);
+    // Checkpoint WAL (merges journal into main file) then close DB connection
+    checkpointWal();
+    closeDb();
+
+    // Backup current DB (post-checkpoint, so backup is complete)
     if (fs.existsSync(dbPath)) {
       fs.copyFileSync(dbPath, backupPath);
     }
 
-    // Close DB connection, replace file, then it will reopen on next request
-    closeDb();
+    // Remove stale WAL/SHM files — they belong to the old DB and would corrupt the new one
+    const walPath = dbPath + '-wal';
+    const shmPath = dbPath + '-shm';
+    if (fs.existsSync(walPath)) fs.unlinkSync(walPath);
+    if (fs.existsSync(shmPath)) fs.unlinkSync(shmPath);
+
+    // Write the new database
     fs.writeFileSync(dbPath, buffer);
 
-    // Clean up old backups (keep only latest 3)
-    const dir = path.dirname(dbPath);
-    const baseName = path.basename(dbPath, '.db');
-    const backups = fs.readdirSync(dir)
-      .filter((f) => f.startsWith(baseName + '.backup-'))
+    // Keep only the 5 most recent backups
+    const allBackups = fs.readdirSync(dir)
+      .filter(f => f.startsWith(baseName + '.backup-') && f.endsWith('.db'))
       .sort()
       .reverse();
-    backups.slice(3).forEach((f) => fs.unlinkSync(path.join(dir, f)));
+    allBackups.slice(5).forEach(f => { try { fs.unlinkSync(path.join(dir, f)); } catch { /* ignore */ } });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, backupFile: backupFileName, timestamp });
   } catch (err) {
     console.error('[POST /api/db]', err);
     return NextResponse.json({ error: 'Failed to restore database' }, { status: 500 });

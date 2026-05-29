@@ -1,0 +1,37 @@
+appId: com.vendorbilling.app
+productName: Vendor Billing
+
+directories:
+  output: dist
+  buildResources: build-resources
+
+# Files bundled inside the app ASAR (Electron main process code only)
+files:
+  - dist-electron/**/*
+  - electron/license-window.html
+  - package.json
+
+# Next.js standalone server — placed outside ASAR so node.js can run it
+extraResources:
+  - from: server
+    to: server
+
+win:
+  sign: false
+  signingHashAlgorithms: []
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: false
+  shortcutName: Vendor Billing
+  runAfterFinish: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+
+asar: true
+# node-machine-id is pure JS — no native rebuild needed
+npmRebuild: false

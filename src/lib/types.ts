@@ -96,3 +96,76 @@ export interface Collection {
   note: string;
   createdAt: string;
 }
+
+export interface Shop {
+  id: string;
+  name: string;
+  phone?: string;
+  code?: number;
+  pendingBalance: number; // amount I owe to the shop
+  createdAt: string;
+}
+
+export interface Purchase {
+  id: string;
+  purchaseNumber: number;
+  shopId: string;
+  shopName: string;
+  date: string;
+  items: BillItem[];
+  subtotal: number;
+  previousBalance: number; // what I owed before this purchase
+  totalDue: number;        // subtotal + previousBalance
+  amountPaid: number;      // amount paid to shop
+  newBalance: number;      // what I still owe
+  createdAt: string;
+}
+
+export interface ShopPayment {
+  id: string;
+  shopId: string;
+  shopName: string;
+  amount: number;
+  date: string;
+  note: string;
+  createdAt: string;
+}
+
+export interface Farmer {
+  id: string;
+  name: string;
+  phone?: string;
+  code?: number;
+  pendingBalance: number; // amount I owe the farmer
+  createdAt: string;
+}
+
+export interface FarmerBill {
+  id: string;
+  billNumber: number;
+  farmerId: string;
+  farmerName: string;
+  date: string;
+  items: BillItem[];
+  subtotal: number;
+  commissionRate: number;  // percentage, default 10
+  commission: number;      // subtotal * commissionRate / 100
+  coolie: number;
+  vadakai: number;
+  netAmount: number;       // subtotal - commission - coolie - vadakai
+  previousBalance: number; // what I owed farmer before
+  totalToPay: number;      // netAmount + previousBalance
+  amountPaid: number;      // paid now
+  newBalance: number;      // totalToPay - amountPaid
+  createdAt: string;
+}
+
+export interface FarmerPayment {
+  id: string;
+  farmerId: string;
+  farmerName: string;
+  amount: number;
+  date: string;
+  note: string;
+  createdAt: string;
+}
