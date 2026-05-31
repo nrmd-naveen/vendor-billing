@@ -306,6 +306,9 @@ function runMigrations(db: DatabaseSync) {
 
   const billItemCols = (db.prepare('PRAGMA table_info(bill_items)').all() as unknown as { name: string }[]).map(c => c.name);
   if (!billItemCols.includes('description')) db.exec('ALTER TABLE bill_items ADD COLUMN description TEXT');
+
+  const shopPayCols = (db.prepare('PRAGMA table_info(shop_payments)').all() as unknown as { name: string }[]).map(c => c.name);
+  if (!shopPayCols.includes('discount')) db.exec('ALTER TABLE shop_payments ADD COLUMN discount REAL');
 }
 
 // ── Company settings ─────────────────────────────────────────────────────────
@@ -869,21 +872,22 @@ export function updatePurchase(id: string, data: Omit<Purchase, 'id' | 'purchase
 
 interface DBShopPayment {
   id: string; shop_id: string; shop_name: string;
-  amount: number; date: string; note: string; created_at: string;
+  amount: number; discount: number | null; date: string; note: string; created_at: string;
 }
 
 function mapShopPayment(row: DBShopPayment): ShopPayment {
   return {
     id: row.id, shopId: row.shop_id, shopName: row.shop_name,
-    amount: row.amount, date: row.date, note: row.note || '', createdAt: row.created_at,
+    amount: row.amount, discount: row.discount ?? undefined,
+    date: row.date, note: row.note || '', createdAt: row.created_at,
   };
 }
 
 export function createShopPayment(p: ShopPayment): ShopPayment {
   const db = getDb();
   db.prepare(
-    'INSERT INTO shop_payments (id, shop_id, shop_name, amount, date, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).run(p.id, p.shopId, p.shopName, p.amount, p.date, p.note || '', p.createdAt);
+    'INSERT INTO shop_payments (id, shop_id, shop_name, amount, discount, date, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(p.id, p.shopId, p.shopName, p.amount, p.discount ?? null, p.date, p.note || '', p.createdAt);
   return p;
 }
 

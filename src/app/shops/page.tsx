@@ -19,6 +19,7 @@ export default function ShopsPage() {
   const [saving, setSaving] = useState(false);
   const [payTarget, setPayTarget] = useState<Shop | null>(null);
   const [payAmount, setPayAmount] = useState('');
+  const [payDiscount, setPayDiscount] = useState('');
   const [payNote, setPayNote] = useState('');
   const [payDone, setPayDone] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -63,21 +64,22 @@ export default function ShopsPage() {
     if (!payTarget) return;
     const amount = parseFloat(payAmount);
     if (!amount || amount <= 0) return;
+    const discount = parseFloat(payDiscount) || 0;
     const d = new Date();
     const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const newBalance = payTarget.pendingBalance - amount;
     await fetch('/api/shop-payments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: crypto.randomUUID(), shopId: payTarget.id, shopName: payTarget.name,
-        amount, date: today, note: payNote, createdAt: new Date().toISOString(),
+        amount, discount: discount || undefined, date: today, note: payNote, createdAt: new Date().toISOString(),
       }),
     });
-    updateShop(payTarget.id, { pendingBalance: newBalance });
+    updateShop(payTarget.id, { pendingBalance: payTarget.pendingBalance - amount - discount });
     setPayDone(payTarget.name);
     setPayTarget(null);
     setPayAmount('');
+    setPayDiscount('');
     setPayNote('');
     setTimeout(() => setPayDone(null), 3000);
   };
@@ -250,7 +252,7 @@ export default function ShopsPage() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b">
               <h2 className="font-bold text-gray-900">Pay to {payTarget.name}</h2>
-              <button onClick={() => setPayTarget(null)}><X className="w-5 h-5 text-gray-400" /></button>
+              <button onClick={() => { setPayTarget(null); setPayAmount(''); setPayDiscount(''); setPayNote(''); }}><X className="w-5 h-5 text-gray-400" /></button>
             </div>
             <div className="p-5 space-y-4">
               <div className="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-sm text-red-700">
@@ -274,13 +276,28 @@ export default function ShopsPage() {
                 )}
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Discount (₹)</label>
+                <div className="relative">
+                  <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input type="number" min="0" step="0.01" value={payDiscount}
+                    onChange={(e) => setPayDiscount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" />
+                  {payDiscount && parseFloat(payDiscount) > 0 && payTarget.pendingBalance > 0 && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-orange-500 font-medium pointer-events-none">
+                      {((parseFloat(payDiscount) / payTarget.pendingBalance) * 100).toFixed(1)}%
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Note (optional)</label>
                 <input value={payNote} onChange={(e) => setPayNote(e.target.value)}
                   placeholder="e.g. Cash payment"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
               </div>
               <div className="flex gap-3 pt-1">
-                <button onClick={() => setPayTarget(null)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl font-medium hover:bg-gray-50 transition-colors text-sm">Cancel</button>
+                <button onClick={() => { setPayTarget(null); setPayAmount(''); setPayDiscount(''); setPayNote(''); }} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl font-medium hover:bg-gray-50 transition-colors text-sm">Cancel</button>
                 <button onClick={handlePay} disabled={!payAmount || parseFloat(payAmount) <= 0}
                   className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white py-2.5 rounded-xl font-medium transition-colors text-sm flex items-center justify-center gap-2">
                   <Banknote className="w-4 h-4" /> Record Payment

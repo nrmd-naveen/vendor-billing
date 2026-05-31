@@ -126,6 +126,7 @@ export interface ShopPayment {
   shopId: string;
   shopName: string;
   amount: number;
+  discount?: number;
   date: string;
   note: string;
   createdAt: string;

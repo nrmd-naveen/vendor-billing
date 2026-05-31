@@ -258,6 +258,21 @@ function NewBillForm() {
         items: items.map(({ _key, ...rest }) => rest),
         subtotal, coolie: coolieVal, vadakai: vadakaiVal, previousBalance, totalDue, amountPaid: paid, newBalance,
       });
+      if (paid > 0) {
+        await fetch('/api/collections', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: crypto.randomUUID(),
+            customerId,
+            customerName: customer!.name,
+            amount: paid,
+            date,
+            note: `Bill #${bill.billNumber}`,
+            createdAt: new Date().toISOString(),
+          }),
+        });
+      }
       router.push(`/bills/${bill.id}`);
       updateCustomer(customerId, { pendingBalance: newBalance });
     } finally { setSaving(false); }

@@ -27,6 +27,7 @@ const mobileNav = [
   { href: '/collections', label: 'Collections', icon: Banknote, group: 'sales' },
   { href: '/bills', label: 'Bills', icon: FileText, group: 'sales' },
   { href: '/shops', label: 'Shops', icon: Store, group: 'purchase' },
+  { href: '/purchase-payments', label: 'Payments', icon: Banknote, group: 'purchase' },
   { href: '/farmers', label: 'Farmers', icon: Wheat, group: 'farmer' },
 ];
 
@@ -58,6 +59,7 @@ const sidebarGroups: SidebarGroup[] = [
     items: [
       { href: '/shops', label: 'Shops', icon: Store, group: 'purchase' },
       { href: '/purchases', label: 'Purchases', icon: ShoppingCart, group: 'purchase' },
+      { href: '/purchase-payments', label: 'Payments', icon: Banknote, group: 'purchase' },
     ],
   },
   {

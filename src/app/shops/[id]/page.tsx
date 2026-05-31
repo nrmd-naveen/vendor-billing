@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useShops, usePurchases, useShopPayments } from '@/lib/storage';
-import { ArrowLeft, Store, IndianRupee, Banknote, Edit2, Check, X, FileText, Plus } from 'lucide-react';
+import { ArrowLeft, IndianRupee, Banknote, Edit2, Check, X, FileText, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { fmtINR } from '@/lib/format';
 import clsx from 'clsx';
@@ -20,6 +20,7 @@ export default function ShopDetailPage() {
   const [editForm, setEditForm] = useState({ name: '', phone: '', code: '' });
 
   const [payAmount, setPayAmount] = useState('');
+  const [payDiscount, setPayDiscount] = useState('');
   const [payNote, setPayNote] = useState('');
   const [payDone, setPayDone] = useState(false);
 
@@ -62,19 +63,13 @@ export default function ShopDetailPage() {
   const handlePay = async () => {
     const amount = parseFloat(payAmount);
     if (!amount || amount <= 0) return;
+    const discount = parseFloat(payDiscount) || 0;
     const d = new Date();
     const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    await addPayment({ shopId: id, shopName: shop.name, amount, date: today, note: payNote });
-    await fetch('/api/shop-payments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: crypto.randomUUID(), shopId: id, shopName: shop.name,
-        amount, date: today, note: payNote, createdAt: new Date().toISOString(),
-      }),
-    });
-    updateShop(id, { pendingBalance: shop.pendingBalance - amount });
+    await addPayment({ shopId: id, shopName: shop.name, amount, discount: discount || undefined, date: today, note: payNote });
+    updateShop(id, { pendingBalance: shop.pendingBalance - amount - discount });
     setPayAmount('');
+    setPayDiscount('');
     setPayNote('');
     setPayDone(true);
     setTimeout(() => setPayDone(false), 3000);
@@ -147,6 +142,18 @@ export default function ShopDetailPage() {
                 placeholder="Amount paid"
                 className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
             </div>
+            <div className="relative flex-1 min-w-[130px]">
+              <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input type="number" min="0" step="0.01" value={payDiscount}
+                onChange={(e) => setPayDiscount(e.target.value)}
+                placeholder="Discount"
+                className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" />
+              {payDiscount && parseFloat(payDiscount) > 0 && shop.pendingBalance > 0 && (
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-orange-500 font-medium pointer-events-none">
+                  {((parseFloat(payDiscount) / shop.pendingBalance) * 100).toFixed(1)}%
+                </span>
+              )}
+            </div>
             <input value={payNote} onChange={(e) => setPayNote(e.target.value)}
               placeholder="Note (optional)"
               className="flex-1 min-w-[120px] border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
@@ -208,7 +215,12 @@ export default function ShopDetailPage() {
                   <div className="text-sm font-medium text-gray-900">{new Date(pay.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</div>
                   {pay.note && <div className="text-xs text-gray-400">{pay.note}</div>}
                 </div>
-                <div className="font-semibold text-green-700 text-sm">₹{fmtINR(pay.amount)}</div>
+                <div className="text-right">
+                  <div className="font-semibold text-green-700 text-sm">₹{fmtINR(pay.amount)}</div>
+                  {pay.discount && pay.discount > 0 && (
+                    <div className="text-xs text-orange-500">-₹{fmtINR(pay.discount)} disc</div>
+                  )}
+                </div>
               </div>
             ))}
           </div>

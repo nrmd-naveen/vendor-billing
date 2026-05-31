@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useBills, usePurchases, useFarmerBills } from '@/lib/storage';
 import {
   TrendingUp, TrendingDown, ShoppingCart, IndianRupee, FileText,
-  Download, Printer, Calendar, ChevronDown, Users, Wheat, ArrowRight,
+  Download, Printer, Calendar, Users, Wheat, ArrowRight,
   BarChart2, Filter
 } from 'lucide-react';
 import { Bill, Purchase, FarmerBill } from '@/lib/types';
