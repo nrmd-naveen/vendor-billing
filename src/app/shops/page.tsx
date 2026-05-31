@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useShops, usePurchases } from '@/lib/storage';
 import { Search, Plus, X, Store, IndianRupee, Banknote, Trash2, ChevronRight } from 'lucide-react';
 import { Shop } from '@/lib/types';
@@ -24,7 +24,15 @@ export default function ShopsPage() {
   const [payDone, setPayDone] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
+  const payAmountRef = useRef<HTMLInputElement>(null);
+  const payDiscountRef = useRef<HTMLInputElement>(null);
+  const payNoteRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (payTarget) setTimeout(() => payAmountRef.current?.focus(), 50);
+  }, [payTarget]);
 
   if (!mounted || !loaded || !purchasesLoaded) {
     return <div className="p-6 flex items-center justify-center min-h-64"><div className="text-gray-400 animate-pulse">Loading...</div></div>;
@@ -262,10 +270,10 @@ export default function ShopsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹)</label>
                 <div className="relative">
                   <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="number" min="0" step="0.01" value={payAmount}
+                  <input ref={payAmountRef} type="number" min="0" step="0.01" value={payAmount}
                     onChange={(e) => setPayAmount(e.target.value)}
-                    placeholder="0.00" autoFocus
-                    onKeyDown={(e) => e.key === 'Enter' && handlePay()}
+                    placeholder="0.00"
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); payDiscountRef.current?.focus(); } }}
                     className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
                 </div>
                 {payTarget.pendingBalance > 0 && (
@@ -279,9 +287,10 @@ export default function ShopsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Discount (₹)</label>
                 <div className="relative">
                   <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="number" min="0" step="0.01" value={payDiscount}
+                  <input ref={payDiscountRef} type="number" min="0" step="0.01" value={payDiscount}
                     onChange={(e) => setPayDiscount(e.target.value)}
                     placeholder="0.00"
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); payNoteRef.current?.focus(); } }}
                     className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" />
                   {payDiscount && parseFloat(payDiscount) > 0 && payTarget.pendingBalance > 0 && (
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-orange-500 font-medium pointer-events-none">
@@ -292,8 +301,9 @@ export default function ShopsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Note (optional)</label>
-                <input value={payNote} onChange={(e) => setPayNote(e.target.value)}
+                <input ref={payNoteRef} value={payNote} onChange={(e) => setPayNote(e.target.value)}
                   placeholder="e.g. Cash payment"
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handlePay(); } }}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
               </div>
               <div className="flex gap-3 pt-1">

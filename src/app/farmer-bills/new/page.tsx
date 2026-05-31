@@ -183,6 +183,22 @@ function NewFarmerBillForm() {
         coolie: coolieVal, vadakai: vadakaiVal, netAmount,
         previousBalance, totalToPay, amountPaid: paid, newBalance,
       });
+      if (paid > 0) {
+        await fetch('/api/farmer-payments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: crypto.randomUUID(),
+            farmerId,
+            farmerName: farmer!.name,
+            amount: paid,
+            date,
+            note: `Bill #${bill.billNumber}`,
+            createdAt: new Date().toISOString(),
+            updateBalance: false,
+          }),
+        });
+      }
       updateFarmer(farmerId, { pendingBalance: newBalance });
       router.push(`/farmer-bills/${bill.id}`);
     } finally { setSaving(false); }

@@ -217,9 +217,14 @@ export default function PurchasePaymentsPage() {
                           )}
                         </div>
                       </div>
-                      <span className="font-bold text-orange-700 flex items-center gap-0.5 text-base">
-                        <IndianRupee className="w-4 h-4" />{fmtINR(p.amount)}
-                      </span>
+                      <div className="text-right">
+                        <span className="font-bold text-orange-700 flex items-center gap-0.5 text-base justify-end">
+                          <IndianRupee className="w-4 h-4" />{fmtINR(p.amount)}
+                        </span>
+                        {p.discount && p.discount > 0 && (
+                          <span className="text-xs text-green-600">+₹{fmtINR(p.discount)} disc.</span>
+                        )}
+                      </div>
                     </Link>
                   ))}
                 </div>
