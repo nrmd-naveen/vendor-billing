@@ -6,38 +6,20 @@ import { fmtINR } from '@/lib/format';
 import { Printer, Download, FileDown } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { CompanySettings } from '@/lib/types';
+import { LedgerEntry, LedgerItemRow } from './ShopLedgerPreview';
 
-export interface LedgerItemRow {
-  name: string;
-  sacks: number;
-  totalWeight: number;
-  pricePerKg: number;
-  amount: number;
-}
+export type { LedgerEntry, LedgerItemRow };
 
-export interface LedgerEntry {
-  id: string;
-  date: string;
-  type: 'purchase' | 'payment';
-  ref: string;
-  debit: number;
-  credit: number;
-  balance: number;
-  items?: LedgerItemRow[];      // purchase items
-  note?: string;                // payment note
-  discount?: number;            // payment discount
-}
-
-interface ShopLedgerPreviewProps {
-  shopName: string;
-  shopPhone?: string;
+interface CustomerLedgerPreviewProps {
+  customerName: string;
+  customerPhone?: string;
   dateFrom: string;
   dateTo: string;
   openingBalance: number;
   entries: LedgerEntry[];
   closingBalance: number;
-  totalPurchases: number;
-  totalPayments: number;
+  totalBills: number;
+  totalCollections: number;
 }
 
 function fmtDate(dateStr: string) {
@@ -53,15 +35,15 @@ function fmtDateLong(dateStr: string) {
 
 function buildPrintDoc(
   settings: CompanySettings,
-  shopName: string,
-  shopPhone: string | undefined,
+  customerName: string,
+  customerPhone: string | undefined,
   dateFrom: string,
   dateTo: string,
   openingBalance: number,
   entries: LedgerEntry[],
   closingBalance: number,
-  totalPurchases: number,
-  totalPayments: number,
+  totalBills: number,
+  totalCollections: number,
   fileStamp: string,
 ): string {
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -93,7 +75,7 @@ function buildPrintDoc(
           <tbody>${itemRows}</tbody>
         </table>`;
     } else if (e.type === 'payment') {
-      descCell = `<div style="font-weight:600;color:#166534;">கட்டணம்</div>
+      descCell = `<div style="font-weight:600;color:#166534;">வசூல்</div>
         ${e.note ? `<div style="color:#666;font-size:10px;margin-top:1px;">குறிப்பு: ${e.note}</div>` : ''}
         ${e.discount && e.discount > 0 ? `<div style="color:#b45309;font-size:10px;">தள்ளுபடி: ${money(e.discount)}</div>` : ''}`;
     }
@@ -131,7 +113,7 @@ function buildPrintDoc(
   const contactBar = (settings.contact1Name || settings.contact2Name) ? `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 12px;border-bottom:1px solid #374151;">
       <div style="font-size:11px;font-weight:600;">${settings.contact1Name || ''}<br/>${settings.contact1Phone || ''}</div>
-      <div style="font-size:13px;font-weight:700;text-align:center;">கடை கணக்கு</div>
+      <div style="font-size:13px;font-weight:700;text-align:center;">வாடிக்கையாளர் கணக்கு</div>
       <div style="font-size:11px;font-weight:600;text-align:right;">${settings.contact2Name || ''}<br/>${settings.contact2Phone || ''}</div>
     </div>` : '';
 
@@ -141,7 +123,7 @@ function buildPrintDoc(
 <html lang="ta">
 <head>
   <meta charset="UTF-8"/>
-  <title>Ledger_${shopName.replace(/\s+/g, '_')}_${fileStamp}</title>
+  <title>CustomerLedger_${customerName.replace(/\s+/g, '_')}_${fileStamp}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;500;600;700;900&display=swap" rel="stylesheet">
   <style>
@@ -189,12 +171,12 @@ function buildPrintDoc(
   <!-- Contact bar -->
   ${contactBar}
 
-  <!-- Shop + Period -->
+  <!-- Customer + Period -->
   <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 12px;border-bottom:1px solid #374151;background:#fafafa;">
     <div>
-      <span style="font-size:10px;color:#6b7280;font-weight:600;">கடை: </span>
-      <span style="font-size:13px;font-weight:700;">${shopName}</span>
-      ${shopPhone ? `<span style="font-size:10px;color:#9ca3af;margin-left:6px;">${shopPhone}</span>` : ''}
+      <span style="font-size:10px;color:#6b7280;font-weight:600;">வாடிக்கையாளர்: </span>
+      <span style="font-size:13px;font-weight:700;">${customerName}</span>
+      ${customerPhone ? `<span style="font-size:10px;color:#9ca3af;margin-left:6px;">${customerPhone}</span>` : ''}
     </div>
     <div style="text-align:right;">
       <span style="font-size:10px;color:#6b7280;font-weight:600;">காலம்: </span>
@@ -225,8 +207,8 @@ function buildPrintDoc(
         <th style="padding:7px 6px;text-align:center;border-right:1px solid #9ca3af;font-size:11px;font-weight:700;line-height:1.4;">தேதி</th>
         <th style="padding:7px 4px;text-align:center;border-right:1px solid #9ca3af;font-size:11px;font-weight:700;line-height:1.4;">எண்</th>
         <th style="padding:7px 8px;text-align:left;border-right:1px solid #9ca3af;font-size:11px;font-weight:700;line-height:1.4;">விவரம்</th>
-        <th style="padding:7px 8px;text-align:right;border-right:1px solid #9ca3af;font-size:11px;font-weight:700;line-height:1.4;">கொள்முதல்<br/><span style="font-weight:400;font-size:9px;">(பற்று)</span></th>
-        <th style="padding:7px 8px;text-align:right;border-right:1px solid #9ca3af;font-size:11px;font-weight:700;line-height:1.4;">கட்டணம்<br/><span style="font-weight:400;font-size:9px;">(வரவு)</span></th>
+        <th style="padding:7px 8px;text-align:right;border-right:1px solid #9ca3af;font-size:11px;font-weight:700;line-height:1.4;">விற்பனை<br/><span style="font-weight:400;font-size:9px;">(பற்று)</span></th>
+        <th style="padding:7px 8px;text-align:right;border-right:1px solid #9ca3af;font-size:11px;font-weight:700;line-height:1.4;">வசூல்<br/><span style="font-weight:400;font-size:9px;">(வரவு)</span></th>
         <th style="padding:7px 8px;text-align:right;font-size:11px;font-weight:700;line-height:1.4;">இருப்பு<br/><span style="font-weight:400;font-size:9px;">(பாக்கி)</span></th>
       </tr>
     </thead>
@@ -240,8 +222,8 @@ function buildPrintDoc(
         <td style="padding:8px 6px;border-right:1px solid #9ca3af;"></td>
         <td style="padding:8px 4px;border-right:1px solid #9ca3af;"></td>
         <td style="padding:8px 8px;border-right:1px solid #9ca3af;font-weight:700;font-size:12px;">மொத்தம்</td>
-        <td style="padding:8px 8px;text-align:right;border-right:1px solid #9ca3af;font-weight:700;font-size:12px;">${money(totalPurchases)}</td>
-        <td style="padding:8px 8px;text-align:right;border-right:1px solid #9ca3af;font-weight:700;font-size:12px;color:#166534;">${money(totalPayments)}</td>
+        <td style="padding:8px 8px;text-align:right;border-right:1px solid #9ca3af;font-weight:700;font-size:12px;">${money(totalBills)}</td>
+        <td style="padding:8px 8px;text-align:right;border-right:1px solid #9ca3af;font-weight:700;font-size:12px;color:#166534;">${money(totalCollections)}</td>
         <td style="padding:8px 8px;text-align:right;font-weight:700;font-size:12px;color:${cbColor};">${money(closingBalance)}${closingBalance < 0 ? ' வ' : ''}</td>
       </tr>
     </tfoot>
@@ -257,8 +239,8 @@ function buildPrintDoc(
 
   <!-- Summary strip -->
   <div style="display:flex;justify-content:space-between;padding:5px 12px;border-top:1px solid #d1d5db;font-size:11px;color:#4b5563;">
-    <span><b>கொள்முதல்:</b> <span style="color:#b45309;font-weight:700;">${money(totalPurchases)}</span></span>
-    <span><b>கட்டணம்:</b> <span style="color:#166534;font-weight:700;">${money(totalPayments)}</span></span>
+    <span><b>விற்பனை:</b> <span style="color:#b45309;font-weight:700;">${money(totalBills)}</span></span>
+    <span><b>வசூல்:</b> <span style="color:#166534;font-weight:700;">${money(totalCollections)}</span></span>
     <span><b>பதிவுகள்:</b> <span style="font-weight:700;">${entries.length}</span></span>
   </div>
 
@@ -272,10 +254,10 @@ function buildPrintDoc(
 </html>`;
 }
 
-export default function ShopLedgerPreview({
-  shopName, shopPhone, dateFrom, dateTo, openingBalance,
-  entries, closingBalance, totalPurchases, totalPayments,
-}: ShopLedgerPreviewProps) {
+export default function CustomerLedgerPreview({
+  customerName, customerPhone, dateFrom, dateTo, openingBalance,
+  entries, closingBalance, totalBills, totalCollections,
+}: CustomerLedgerPreviewProps) {
   const { settings } = useSettings();
   const [copied, setCopied] = useState(false);
 
@@ -287,15 +269,14 @@ export default function ShopLedgerPreview({
 
   const handleSavePDF = () => {
     const html = buildPrintDoc(
-      settings, shopName, shopPhone, dateFrom, dateTo,
-      openingBalance, entries, closingBalance, totalPurchases, totalPayments,
+      settings, customerName, customerPhone, dateFrom, dateTo,
+      openingBalance, entries, closingBalance, totalBills, totalCollections,
       makeStamp(),
     );
     const win = window.open('', '_blank');
     if (!win) return;
     win.document.write(html);
     win.document.close();
-    // Wait for fonts then print
     win.addEventListener('load', () => {
       const fonts = (win.document as Document & { fonts?: { ready: Promise<unknown> } }).fonts;
       if (fonts?.ready) {
@@ -308,11 +289,11 @@ export default function ShopLedgerPreview({
   };
 
   const handleSavePhoto = async () => {
-    const el = document.getElementById('shop-ledger-print-area');
+    const el = document.getElementById('customer-ledger-print-area');
     if (!el) return;
     const dataUrl = await toPng(el, { cacheBust: true, backgroundColor: '#ffffff', quality: 1, pixelRatio: 2 });
     const a = document.createElement('a');
-    a.download = `Ledger_${shopName.replace(/\s+/g, '_')}_${makeStamp()}.png`;
+    a.download = `CustomerLedger_${customerName.replace(/\s+/g, '_')}_${makeStamp()}.png`;
     a.href = dataUrl;
     a.click();
     try {
@@ -325,7 +306,6 @@ export default function ShopLedgerPreview({
 
   return (
     <div className="bg-white">
-      {/* Action buttons — hidden on print */}
       <div className="flex justify-end gap-2 p-4 border-b border-gray-100 print:hidden">
         <button
           onClick={handleSavePDF}
@@ -341,14 +321,14 @@ export default function ShopLedgerPreview({
         </button>
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm"
+          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm"
         >
           <Printer className="w-4 h-4" /> Print
         </button>
       </div>
 
       <div
-        id="shop-ledger-print-area"
+        id="customer-ledger-print-area"
         className="p-4 print:p-0"
         style={{ fontFamily: "var(--font-noto-tamil), 'Noto Sans Tamil', 'Latha', Arial, sans-serif", fontSize: '12px' }}
       >
@@ -393,7 +373,7 @@ export default function ShopLedgerPreview({
                 {settings.contact1Name && <div className="font-semibold">{settings.contact1Name}</div>}
                 {settings.contact1Phone && <div className="font-semibold">{settings.contact1Phone}</div>}
               </div>
-              <div className="text-center font-bold text-sm">கடை கணக்கு / Shop Ledger</div>
+              <div className="text-center font-bold text-sm">வாடிக்கையாளர் கணக்கு / Customer Ledger</div>
               <div className="text-right text-xs">
                 {settings.contact2Name && <div className="font-semibold">{settings.contact2Name}</div>}
                 {settings.contact2Phone && <div className="font-semibold">{settings.contact2Phone}</div>}
@@ -404,12 +384,12 @@ export default function ShopLedgerPreview({
           {/* Ledger meta row */}
           <div className="border-b border-gray-700 print:border-black px-3 py-2 grid grid-cols-2 gap-2">
             <div>
-              <span className="font-semibold text-xs text-gray-600">கடை / Shop: </span>
-              <span className="font-bold text-sm">{shopName}</span>
-              {shopPhone && <span className="text-xs text-gray-500 ml-2">{shopPhone}</span>}
+              <span className="font-semibold text-xs text-gray-600">வாடிக்கையாளர்: </span>
+              <span className="font-bold text-sm">{customerName}</span>
+              {customerPhone && <span className="text-xs text-gray-500 ml-2">{customerPhone}</span>}
             </div>
             <div className="text-right">
-              <span className="font-semibold text-xs text-gray-600">காலம் / Period: </span>
+              <span className="font-semibold text-xs text-gray-600">காலம்: </span>
               <span className="font-medium text-xs">
                 {fmtDateLong(dateFrom)} — {fmtDateLong(dateTo)}
               </span>
@@ -440,8 +420,8 @@ export default function ShopLedgerPreview({
                 <th className="py-1.5 px-1 font-bold border-r border-gray-600 text-center leading-tight">தேதி</th>
                 <th className="py-1.5 px-1 font-bold border-r border-gray-600 text-center leading-tight">எண்</th>
                 <th className="py-1.5 px-1 font-bold border-r border-gray-600 text-left leading-tight">விவரம்</th>
-                <th className="py-1.5 px-1 font-bold border-r border-gray-600 text-right leading-tight">கொள்முதல்<br/><span className="font-normal text-[10px]">(பற்று)</span></th>
-                <th className="py-1.5 px-1 font-bold border-r border-gray-600 text-right leading-tight">கட்டணம்<br/><span className="font-normal text-[10px]">(வரவு)</span></th>
+                <th className="py-1.5 px-1 font-bold border-r border-gray-600 text-right leading-tight">விற்பனை<br/><span className="font-normal text-[10px]">(பற்று)</span></th>
+                <th className="py-1.5 px-1 font-bold border-r border-gray-600 text-right leading-tight">வசூல்<br/><span className="font-normal text-[10px]">(வரவு)</span></th>
                 <th className="py-1.5 px-1 font-bold text-right leading-tight">இருப்பு<br/><span className="font-normal text-[10px]">(பாக்கி)</span></th>
               </tr>
             </thead>
@@ -485,14 +465,11 @@ export default function ShopLedgerPreview({
                         </table>
                       ) : entry.type === 'payment' ? (
                         <div className="py-0.5">
-                          <div className="font-semibold text-green-800">கட்டணம்</div>
+                          <div className="font-semibold text-green-800">வசூல்</div>
                           {entry.note && <div className="text-gray-500 text-[11px]">குறிப்பு: {entry.note}</div>}
-                          {entry.discount && entry.discount > 0 ? (
-                            <div className="text-orange-600 text-[11px]">தள்ளுபடி: ₹{fmtINR(entry.discount, 2)}</div>
-                          ) : null}
                         </div>
                       ) : (
-                        <div className="py-0.5 font-semibold text-orange-800">கொள்முதல்</div>
+                        <div className="py-0.5 font-semibold text-green-800">விற்பனை</div>
                       )}
                     </td>
                     <td className="py-1.5 px-1 text-right border-r border-gray-300 font-medium align-middle">
@@ -510,17 +487,16 @@ export default function ShopLedgerPreview({
               )}
             </tbody>
 
-            {/* Totals footer */}
             <tfoot>
               <tr className="border-t-2 border-gray-600 print:border-black font-bold bg-gray-100">
                 <td className="py-2 px-1 border-r border-gray-400" />
                 <td className="py-2 px-1 border-r border-gray-400" />
                 <td className="py-2 px-2 border-r border-gray-400 text-xs font-bold text-gray-700">மொத்தம்</td>
                 <td className="py-2 px-1 text-right border-r border-gray-400">
-                  ₹{fmtINR(totalPurchases, 2)}
+                  ₹{fmtINR(totalBills, 2)}
                 </td>
                 <td className="py-2 px-1 text-right border-r border-gray-400 text-green-700">
-                  ₹{fmtINR(totalPayments, 2)}
+                  ₹{fmtINR(totalCollections, 2)}
                 </td>
                 <td className={`py-2 px-1 text-right ${closingBalance > 0 ? 'text-red-700' : closingBalance < 0 ? 'text-green-700' : 'text-gray-500'}`}>
                   ₹{fmtINR(Math.abs(closingBalance), 2)}
@@ -542,12 +518,12 @@ export default function ShopLedgerPreview({
           {/* Summary row */}
           <div className="border-t border-gray-400 px-3 py-1.5 grid grid-cols-3 gap-2 text-xs text-gray-600">
             <div>
-              <span className="font-semibold">கொள்முதல்: </span>
-              <span className="text-orange-700 font-bold">₹{fmtINR(totalPurchases, 2)}</span>
+              <span className="font-semibold">விற்பனை: </span>
+              <span className="text-orange-700 font-bold">₹{fmtINR(totalBills, 2)}</span>
             </div>
             <div className="text-center">
-              <span className="font-semibold">கட்டணம்: </span>
-              <span className="text-green-700 font-bold">₹{fmtINR(totalPayments, 2)}</span>
+              <span className="font-semibold">வசூல்: </span>
+              <span className="text-green-700 font-bold">₹{fmtINR(totalCollections, 2)}</span>
             </div>
             <div className="text-right">
               <span className="font-semibold">பதிவுகள்: </span>

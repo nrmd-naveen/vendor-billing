@@ -4,7 +4,7 @@ import { useState, useEffect, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCustomers, useBills } from '@/lib/storage';
-import { ArrowLeft, Phone, IndianRupee, FileText, PlusCircle, Edit2, Trash2, Check, X, Banknote, Pencil } from 'lucide-react';
+import { ArrowLeft, Phone, IndianRupee, FileText, PlusCircle, Edit2, Trash2, Check, X, Banknote, Pencil, BookOpen } from 'lucide-react';
 import { Bill, Collection, CUSTOMER_PREFIXES } from '@/lib/types';
 import { fmtINR } from '@/lib/format';
 import clsx from 'clsx';
@@ -307,8 +307,18 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               </div>
             </div>
 
-            {/* Quick collection */}
+            {/* Ledger link */}
             <div className="mt-4 pt-4 border-t border-gray-100">
+              <Link
+                href={`/customers/${id}/ledger`}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium text-green-700 border border-green-200 hover:bg-green-50 transition-colors"
+              >
+                <BookOpen className="w-4 h-4" /> View Ledger
+              </Link>
+            </div>
+
+            {/* Quick collection */}
+            <div className="mt-3 pt-3 border-t border-gray-100">
               {collectMode ? (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-700">

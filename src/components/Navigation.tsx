@@ -25,9 +25,10 @@ const mobileNav = [
   { href: '/purchases/new', label: 'Buy', icon: ShoppingCart, purchaseHighlight: true, group: 'purchase' },
   { href: '/farmer-bills/new', label: 'Farmer', icon: Wheat, farmerHighlight: true, group: 'farmer' },
   { href: '/collections', label: 'Collections', icon: Banknote, group: 'sales' },
+  { href: '/customer-ledger', label: 'Cust. Ledger', icon: BookOpen, group: 'sales' },
   { href: '/bills', label: 'Sales Bills', icon: FileText, group: 'sales' },
   { href: '/shops', label: 'Shops', icon: Store, group: 'purchase' },
-  { href: '/ledger', label: 'Ledger', icon: BookOpen, group: 'purchase' },
+  { href: '/ledger', label: 'Shop Ledger', icon: BookOpen, group: 'purchase' },
   { href: '/purchase-payments', label: 'Payments', icon: Banknote, group: 'purchase' },
   { href: '/farmers', label: 'Farmers', icon: Wheat, group: 'farmer' },
 ];
@@ -50,6 +51,7 @@ const sidebarGroups: SidebarGroup[] = [
       { href: '/customers', label: 'Customers', icon: Users, group: 'sales' },
       { href: '/bills', label: 'Sales Bills', icon: FileText, group: 'sales' },
       { href: '/collections', label: 'Collections', icon: Banknote, group: 'sales' },
+      { href: '/customer-ledger', label: 'Customer Ledger', icon: BookOpen, group: 'sales' },
     ],
   },
   {
@@ -60,7 +62,7 @@ const sidebarGroups: SidebarGroup[] = [
     items: [
       { href: '/shops', label: 'Shops', icon: Store, group: 'purchase' },
       { href: '/purchases', label: 'Purchases', icon: ShoppingCart, group: 'purchase' },
-      { href: '/ledger', label: 'Ledger', icon: BookOpen, group: 'purchase' },
+      { href: '/ledger', label: 'Shop Ledger', icon: BookOpen, group: 'purchase' },
       { href: '/purchase-payments', label: 'Payments', icon: Banknote, group: 'purchase' },
     ],
   },
@@ -166,7 +168,7 @@ export default function Navigation() {
       </nav>
 
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col w-60 bg-green-800 text-white min-h-screen fixed left-0 top-0 z-40">
+      <aside className="hidden lg:flex flex-col w-60 bg-green-800 text-white h-screen fixed left-0 top-0 z-40">
         {/* Branding */}
         <div className="px-5 py-5 border-b border-green-700">
           <div className="flex items-center gap-3">

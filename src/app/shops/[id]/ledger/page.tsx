@@ -130,6 +130,7 @@ export default function ShopLedgerPage() {
     );
 
     let running = openingBalance;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const withBalance: LedgerEntry[] = merged.map(({ sortKey: _s, ...e }) => {
       running = running + e.debit - e.credit;
       return { ...e, balance: running };
