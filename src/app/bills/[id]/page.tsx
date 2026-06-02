@@ -30,7 +30,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
     return (
       <div className="p-6 lg:p-8 text-center">
         <p className="text-gray-500 mb-4">Bill not found.</p>
-        <Link href="/bills" className="text-green-600 hover:underline">Back to Bills</Link>
+        <Link href="/bills" className="text-green-600 hover:underline">Back to Sales Bills</Link>
       </div>
     );
   }
@@ -46,7 +46,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
       <div className="flex items-center justify-between print:hidden">
         <Link href="/bills" className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm">
           <ArrowLeft className="w-4 h-4" />
-          Back to Bills
+          Back to Sales Bills
         </Link>
         <div className="flex items-center gap-2">
           <Link

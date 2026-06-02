@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useBills, usePurchases, useFarmerBills } from '@/lib/storage';
 import {
   TrendingUp, TrendingDown, ShoppingCart, IndianRupee, FileText,
-  Download, Printer, Calendar, Users, Wheat, ArrowRight,
+  Calendar, Users, Wheat, ArrowRight,
   BarChart2, Filter
 } from 'lucide-react';
 import { Bill, Purchase, FarmerBill } from '@/lib/types';
@@ -91,21 +91,6 @@ export default function ReportsPage() {
   const totalPurchasesPaid = useMemo(() => filteredPurchases.reduce((s, p) => s + p.amountPaid, 0), [filteredPurchases]);
   const totalFarmerPaid = useMemo(() => filteredFarmerBills.reduce((s, fb) => s + fb.amountPaid, 0), [filteredFarmerBills]);
 
-  const handlePrint = () => window.print();
-
-  const handleExportPDF = async () => {
-    const el = document.getElementById('report-content');
-    if (!el) return;
-    const { toPng } = await import('html-to-image');
-    const { jsPDF } = await import('jspdf');
-    const dataUrl = await toPng(el, { cacheBust: true, backgroundColor: '#f9fafb', pixelRatio: 1.5 });
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const imgWidth = pageWidth - 40;
-    const imgHeight = (el.offsetHeight / el.offsetWidth) * imgWidth;
-    pdf.addImage(dataUrl, 'PNG', 20, 20, imgWidth, imgHeight);
-    pdf.save(`report-${label.replace(/\s/g, '-')}-${from}.pdf`);
-  };
 
   if (!mounted || !billsLoaded || !purchasesLoaded || !farmerBillsLoaded) {
     return (
@@ -150,20 +135,6 @@ export default function ReportsPage() {
               Reports & Analysis
             </h1>
             <p className="text-gray-500 text-sm mt-1">Comprehensive business insights — {label}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleExportPDF}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
-            >
-              <Download className="w-4 h-4" /> Export PDF
-            </button>
-            <button
-              onClick={handlePrint}
-              className="flex items-center gap-2 border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg font-medium text-sm transition-colors"
-            >
-              <Printer className="w-4 h-4" /> Print
-            </button>
           </div>
         </div>
 

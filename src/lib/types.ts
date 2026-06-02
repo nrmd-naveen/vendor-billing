@@ -100,6 +100,7 @@ export interface Collection {
 export interface Shop {
   id: string;
   name: string;
+  nickname?: string;
   phone?: string;
   code?: number;
   pendingBalance: number; // amount I owe to the shop

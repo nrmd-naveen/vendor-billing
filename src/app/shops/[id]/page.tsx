@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useShops, usePurchases, useShopPayments } from '@/lib/storage';
-import { ArrowLeft, IndianRupee, Banknote, Edit2, Check, X, FileText, Plus } from 'lucide-react';
+import { ArrowLeft, IndianRupee, Banknote, Edit2, Check, X, FileText, Plus, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import { fmtINR } from '@/lib/format';
 import clsx from 'clsx';
@@ -17,7 +17,7 @@ export default function ShopDetailPage() {
   const [mounted, setMounted] = useState(false);
 
   const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', phone: '', code: '' });
+  const [editForm, setEditForm] = useState({ name: '', nickname: '', phone: '', code: '' });
 
   const [payAmount, setPayAmount] = useState('');
   const [payDiscount, setPayDiscount] = useState('');
@@ -35,7 +35,7 @@ export default function ShopDetailPage() {
 
   useEffect(() => {
     if (shop && !editing) {
-      setEditForm({ name: shop.name, phone: shop.phone || '', code: shop.code ? String(shop.code) : '' });
+      setEditForm({ name: shop.name, nickname: shop.nickname || '', phone: shop.phone || '', code: shop.code ? String(shop.code) : '' });
     }
   }, [shop, editing]);
 
@@ -58,6 +58,7 @@ export default function ShopDetailPage() {
     if (!editForm.name.trim()) return;
     updateShop(id, {
       name: editForm.name.trim(),
+      nickname: editForm.nickname.trim() || undefined,
       phone: editForm.phone.trim() || undefined,
       code: editForm.code ? parseInt(editForm.code) : undefined,
     });
@@ -90,21 +91,32 @@ export default function ShopDetailPage() {
         <Link href="/shops" className="text-gray-400 hover:text-gray-600 p-1"><ArrowLeft className="w-5 h-5" /></Link>
         <div className="flex-1">
           {editing ? (
-            <div className="flex items-center gap-2">
-              <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                className="border border-gray-300 rounded-lg px-3 py-1.5 text-xl font-bold focus:outline-none focus:ring-2 focus:ring-orange-500" autoFocus />
-              <button onClick={handleSaveEdit} className="text-green-600 p-1 hover:bg-green-50 rounded-lg"><Check className="w-5 h-5" /></button>
-              <button onClick={() => setEditing(false)} className="text-gray-400 p-1 hover:bg-gray-50 rounded-lg"><X className="w-5 h-5" /></button>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  className="border border-gray-300 rounded-lg px-3 py-1.5 text-xl font-bold focus:outline-none focus:ring-2 focus:ring-orange-500" autoFocus
+                  placeholder="Shop name" />
+                <input value={editForm.nickname} onChange={(e) => setEditForm({ ...editForm, nickname: e.target.value })}
+                  className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 w-32"
+                  placeholder="Nickname" />
+                <button onClick={handleSaveEdit} className="text-green-600 p-1 hover:bg-green-50 rounded-lg"><Check className="w-5 h-5" /></button>
+                <button onClick={() => setEditing(false)} className="text-gray-400 p-1 hover:bg-gray-50 rounded-lg"><X className="w-5 h-5" /></button>
+              </div>
             </div>
           ) : (
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold text-gray-900">{shop.name}</h1>
+              {shop.nickname && <span className="text-gray-500 text-sm italic">{shop.nickname}</span>}
               <button onClick={() => setEditing(true)} className="text-gray-400 hover:text-orange-500 p-1"><Edit2 className="w-4 h-4" /></button>
             </div>
           )}
           {shop.phone && <div className="text-gray-500 text-sm">{shop.phone}</div>}
         </div>
         <div className="flex items-center gap-2">
+          <Link href={`/shops/${id}/ledger`}
+            className="flex items-center gap-1.5 bg-white hover:bg-orange-50 text-orange-600 border border-orange-200 px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+            <BookOpen className="w-4 h-4" /> Ledger
+          </Link>
           <Link href={`/purchases/new?shopId=${id}`}
             className="flex items-center gap-1.5 bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
             <Plus className="w-4 h-4" /> New Purchase

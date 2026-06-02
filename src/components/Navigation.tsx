@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, FileText, Leaf, PlusCircle, Settings, Banknote, ShoppingCart, Store, Wheat, BarChart2 } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Leaf, PlusCircle, Settings, Banknote, ShoppingCart, Store, Wheat, BarChart2, BookOpen } from 'lucide-react';
 import clsx from 'clsx';
 import { useSettings } from '@/lib/useSettings';
 
@@ -25,8 +25,9 @@ const mobileNav = [
   { href: '/purchases/new', label: 'Buy', icon: ShoppingCart, purchaseHighlight: true, group: 'purchase' },
   { href: '/farmer-bills/new', label: 'Farmer', icon: Wheat, farmerHighlight: true, group: 'farmer' },
   { href: '/collections', label: 'Collections', icon: Banknote, group: 'sales' },
-  { href: '/bills', label: 'Bills', icon: FileText, group: 'sales' },
+  { href: '/bills', label: 'Sales Bills', icon: FileText, group: 'sales' },
   { href: '/shops', label: 'Shops', icon: Store, group: 'purchase' },
+  { href: '/ledger', label: 'Ledger', icon: BookOpen, group: 'purchase' },
   { href: '/purchase-payments', label: 'Payments', icon: Banknote, group: 'purchase' },
   { href: '/farmers', label: 'Farmers', icon: Wheat, group: 'farmer' },
 ];
@@ -47,7 +48,7 @@ const sidebarGroups: SidebarGroup[] = [
     newItem: { href: '/bills/new', label: 'New Bill', type: 'sales' },
     items: [
       { href: '/customers', label: 'Customers', icon: Users, group: 'sales' },
-      { href: '/bills', label: 'Bills', icon: FileText, group: 'sales' },
+      { href: '/bills', label: 'Sales Bills', icon: FileText, group: 'sales' },
       { href: '/collections', label: 'Collections', icon: Banknote, group: 'sales' },
     ],
   },
@@ -59,6 +60,7 @@ const sidebarGroups: SidebarGroup[] = [
     items: [
       { href: '/shops', label: 'Shops', icon: Store, group: 'purchase' },
       { href: '/purchases', label: 'Purchases', icon: ShoppingCart, group: 'purchase' },
+      { href: '/ledger', label: 'Ledger', icon: BookOpen, group: 'purchase' },
       { href: '/purchase-payments', label: 'Payments', icon: Banknote, group: 'purchase' },
     ],
   },

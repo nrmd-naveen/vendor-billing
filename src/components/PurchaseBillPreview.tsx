@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Purchase } from '@/lib/types';
 import { useSettings } from '@/lib/useSettings';
 import { Printer, Download } from 'lucide-react';
@@ -19,6 +20,7 @@ function formatDate(dateStr: string) {
 
 export default function PurchaseBillPreview({ purchase, shopPhone, showPrintButton = true }: PurchaseBillPreviewProps) {
   const { settings } = useSettings();
+  const [copied, setCopied] = useState(false);
 
   const totalSacks = purchase.items.reduce((s, i) => s + i.sacks.length, 0);
   const totalWeight = purchase.items.reduce((s, i) => s + i.totalWeight, 0);
@@ -35,6 +37,12 @@ export default function PurchaseBillPreview({ purchase, shopPhone, showPrintButt
       a.download = `purchase-${purchase.purchaseNumber}.png`;
       a.href = dataUrl;
       a.click();
+      try {
+        const blob = await fetch(dataUrl).then(r => r.blob());
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch { /* clipboard not available */ }
     } else {
       const { jsPDF } = await import('jspdf');
       const pdfWidth = elWidth * 0.75;
@@ -62,10 +70,10 @@ export default function PurchaseBillPreview({ purchase, shopPhone, showPrintButt
           </button>
           <button
             onClick={() => handleDownload('photo')}
-            className="flex items-center gap-2 bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            className={`flex items-center gap-2 ${copied ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-700 hover:bg-gray-800'} text-white px-4 py-2 rounded-lg font-medium transition-colors`}
           >
             <Download className="w-4 h-4" />
-            Save Photo
+            {copied ? 'Copied!' : 'Save Photo'}
           </button>
           <button
             onClick={() => window.print()}

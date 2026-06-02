@@ -118,7 +118,7 @@ function NewBillForm() {
     setCustomerSearch(c.name);
     setShowCustomerDropdown(false);
     setCustomerDropdownIdx(0);
-    setTimeout(() => vegSearchRef.current?.focus(), 50);
+    setTimeout(() => rateRef.current?.focus(), 50);
   }, []);
 
   const pickVeg = useCallback((veg: Vegetable) => {
@@ -153,7 +153,7 @@ function NewBillForm() {
     }]);
     setEntryVeg(null); setEntryVegSearch(''); setEntryDescription(''); setEntryRate('');
     setEntrySacks([]); setEntrySackWeight(''); setVegDropdownIdx(-1);
-    setTimeout(() => vegSearchRef.current?.focus(), 0);
+    setTimeout(() => rateRef.current?.focus(), 0);
   }, [entryVeg, entryRate, entrySacks, entryDescription]);
 
   const removeItem = (key: string) => setItems((prev) => prev.filter((i) => i._key !== key));
@@ -210,9 +210,9 @@ function NewBillForm() {
   };
 
   const handleRateKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === 'Tab') { 
-      e.preventDefault(); 
-      commitItem(); 
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      vegSearchRef.current?.focus();
     }
   };
 
@@ -228,7 +228,7 @@ function NewBillForm() {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (entrySackWeight.trim() !== '') addSack();
-      else rateRef.current?.focus();
+      else commitItem();
     }
   };
 
@@ -426,16 +426,24 @@ function NewBillForm() {
         <div className="space-y-2">
           <p className="text-xs text-gray-400 hidden sm:flex items-center gap-1">
             <CornerDownLeft className="w-3 h-3" />
-            Search veg (or type code number) → Enter for Name → Enter each sack weight → Empty Enter for Rate →
-            <kbd className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-xs font-mono">Enter</kbd> to add item
+            Rate/kg → Search veg → Enter each sack weight → Empty Enter to add item
           </p>
+
+          {/* Rate first */}
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">₹</span>
+            <input ref={rateRef} type="number" min="0" step="0.5" value={entryRate}
+              onChange={(e) => setEntryRate(e.target.value)} onKeyDown={handleRateKey}
+              placeholder="Rate / kg"
+              className="w-full border border-gray-400 rounded-lg pl-7 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
+          </div>
 
           {/* Veg search */}
           <div className="relative">
             <input
               ref={vegSearchRef} type="text" value={entryVegSearch}
               onChange={(e) => {
-                setEntryVegSearch(e.target.value); setEntryVeg(null); setEntryDescription(''); setEntryRate('');
+                setEntryVegSearch(e.target.value); setEntryVeg(null); setEntryDescription('');
                 setEntrySacks([]); setShowVegDropdown(true); setVegDropdownIdx(e.target.value.trim() ? 0 : -1);
               }}
               onKeyDown={handleVegSearchKey}
@@ -446,7 +454,6 @@ function NewBillForm() {
                 entryVeg ? 'border-green-500 bg-green-50' : 'border-gray-400')}
               autoComplete="off"
             />
-            {/* Description / Custom Name */}
             {entryVeg && (
               <div className="mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
                 <label className="block text-[10px] font-medium text-gray-400 mb-0.5 ml-1">Custom Name / Description (Optional)</label>
@@ -478,7 +485,7 @@ function NewBillForm() {
             )}
           </div>
 
-          {/* Sack weight + Rate */}
+          {/* Sack weight */}
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
@@ -487,13 +494,6 @@ function NewBillForm() {
                 placeholder="Sack kg (Enter to add)"
                 className={clsx('w-full border rounded-lg pl-9 pr-2 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors',
                   entrySacks.length > 0 ? 'border-orange-500 bg-orange-50' : 'border-gray-400')} />
-            </div>
-            <div className="relative flex-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">₹</span>
-              <input ref={rateRef} type="number" min="0" step="0.5" value={entryRate}
-                onChange={(e) => setEntryRate(e.target.value)} onKeyDown={handleRateKey}
-                placeholder="Rate/kg"
-                className="w-full border border-gray-400 rounded-lg pl-7 pr-2 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
             </div>
             <button type="button" onClick={commitItem}
               disabled={!entryVeg || !entryRate || entrySacks.length === 0}
@@ -524,7 +524,7 @@ function NewBillForm() {
               <span className="text-green-600 font-medium">{entryVeg.emoji} {entryDescription || entryVeg.name}</span>
               — {entrySacks.length} மூடை ({entrySacksTotal} kg) × ₹{fmtINR(parseFloat(entryRate) || 0, 2)} =
               <span className="font-semibold text-gray-800">₹{fmtINR(entrySacksTotal * parseFloat(entryRate), 2)}</span>
-              <span className="text-gray-400 ml-1">↵ empty weight to add item</span>
+              <span className="text-gray-400 ml-1">↵ empty sack to add item</span>
             </div>
           )}
         </div>

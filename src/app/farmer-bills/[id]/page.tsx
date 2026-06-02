@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFarmerBills, useFarmers } from '@/lib/storage';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Trash2, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import FarmerBillPreview from '@/components/FarmerBillPreview';
 
@@ -71,6 +71,13 @@ export default function FarmerBillDetailPage() {
               className="text-yellow-600 hover:text-yellow-800 text-sm border border-yellow-200 hover:border-yellow-300 px-3 py-1.5 rounded-lg transition-colors"
             >
               {bill.farmerName}&apos;s Profile
+            </Link>
+            <Link
+              href={`/farmer-bills/${id}/edit`}
+              className="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 text-sm border border-blue-200 hover:border-blue-300 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Edit
             </Link>
             <button
               onClick={() => setDeleteConfirm(true)}

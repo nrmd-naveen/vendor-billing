@@ -58,7 +58,7 @@ export default function BillsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Bills</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Sales Bills</h1>
           <p className="text-gray-500 text-sm mt-1">
             {filtered.length} bill{filtered.length !== 1 ? 's' : ''}
             {filtered.length > 0 && ` · ₹${fmtINR(filteredTotal)} total`}

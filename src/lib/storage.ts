@@ -315,7 +315,14 @@ export function useFarmerBills() {
   const getFarmerBill = useCallback((id: string) => farmerBills.find((b) => b.id === id), [farmerBills]);
   const getFarmerBillsByFarmer = useCallback((farmerId: string) => farmerBills.filter((b) => b.farmerId === farmerId), [farmerBills]);
 
-  return { farmerBills, addFarmerBill, deleteFarmerBill, getFarmerBill, getFarmerBillsByFarmer, loaded };
+  const updateFarmerBillFn = useCallback(async (id: string, data: Omit<FarmerBill, 'id' | 'billNumber' | 'createdAt'>) => {
+    const res = await fetch(`/api/farmer-bills/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    const updated: FarmerBill = await res.json();
+    setFarmerBills((prev) => prev.map((b) => (b.id === id ? updated : b)));
+    return updated;
+  }, []);
+
+  return { farmerBills, addFarmerBill, updateFarmerBill: updateFarmerBillFn, deleteFarmerBill, getFarmerBill, getFarmerBillsByFarmer, loaded };
 }
 
 // ── Farmer Payments ───────────────────────────────────────────────────────────

@@ -104,7 +104,7 @@ function NewFarmerBillForm() {
   const pickFarmer = useCallback((f: Farmer) => {
     setFarmerId(f.id); setFarmerSearch(f.name);
     setShowFarmerDropdown(false); setFarmerDropdownIdx(0);
-    setTimeout(() => vegSearchRef.current?.focus(), 50);
+    setTimeout(() => rateRef.current?.focus(), 50);
   }, []);
 
   const pickVeg = useCallback((veg: Vegetable) => {
@@ -136,7 +136,7 @@ function NewFarmerBillForm() {
     }]);
     setEntryVeg(null); setEntryVegSearch(''); setEntryDescription(''); setEntryRate('');
     setEntrySacks([]); setEntrySackWeight(''); setVegDropdownIdx(-1);
-    setTimeout(() => vegSearchRef.current?.focus(), 0);
+    setTimeout(() => rateRef.current?.focus(), 0);
   }, [entryVeg, entryRate, entrySacks, entryDescription]);
 
   const handleFarmerKey = (e: React.KeyboardEvent) => {
@@ -319,9 +319,20 @@ function NewFarmerBillForm() {
         )}
 
         <div className="space-y-2">
+          {/* Rate first */}
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">₹</span>
+            <input ref={rateRef} type="number" min="0" step="0.5" value={entryRate}
+              onChange={(e) => setEntryRate(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); vegSearchRef.current?.focus(); } }}
+              placeholder="Rate / kg"
+              className="w-full border border-gray-400 rounded-lg pl-7 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500" />
+          </div>
+
+          {/* Veg search */}
           <div className="relative">
             <input ref={vegSearchRef} type="text" value={entryVegSearch}
-              onChange={(e) => { setEntryVegSearch(e.target.value); setEntryVeg(null); setEntryDescription(''); setEntryRate(''); setEntrySacks([]); setShowVegDropdown(true); setVegDropdownIdx(e.target.value.trim() ? 0 : -1); }}
+              onChange={(e) => { setEntryVegSearch(e.target.value); setEntryVeg(null); setEntryDescription(''); setEntrySacks([]); setShowVegDropdown(true); setVegDropdownIdx(e.target.value.trim() ? 0 : -1); }}
               onKeyDown={handleVegSearchKey} onFocus={() => setShowVegDropdown(true)} onBlur={() => setTimeout(() => setShowVegDropdown(false), 150)}
               placeholder="🥦 Search vegetable or type code..."
               className={clsx('w-full border rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500',
@@ -353,23 +364,16 @@ function NewFarmerBillForm() {
             )}
           </div>
 
+          {/* Sack weight */}
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               <input ref={sackWeightRef} type="number" min="0" step="0.1" value={entrySackWeight}
                 onChange={(e) => setEntrySackWeight(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (entrySackWeight.trim()) addSack(); else rateRef.current?.focus(); } }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (entrySackWeight.trim()) addSack(); else commitItem(); } }}
                 placeholder="Sack kg"
                 className={clsx('w-full border rounded-lg pl-9 pr-2 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500',
                   entrySacks.length > 0 ? 'border-yellow-500 bg-yellow-50' : 'border-gray-400')} />
-            </div>
-            <div className="relative flex-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">₹</span>
-              <input ref={rateRef} type="number" min="0" step="0.5" value={entryRate}
-                onChange={(e) => setEntryRate(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commitItem(); } }}
-                placeholder="Rate/kg"
-                className="w-full border border-gray-400 rounded-lg pl-7 pr-2 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500" />
             </div>
             <button type="button" onClick={commitItem} disabled={!entryVeg || !entryRate || entrySacks.length === 0}
               className="flex items-center gap-1.5 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-200 disabled:text-gray-400 text-white px-4 py-3 rounded-lg text-sm font-medium whitespace-nowrap">

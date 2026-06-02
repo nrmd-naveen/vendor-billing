@@ -1,41 +1,34 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, useRef, useCallback, use } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useShops, useVegetables, usePurchases } from '@/lib/storage';
+import { useVegetables, usePurchases, useShops } from '@/lib/storage';
 import { useSettings } from '@/lib/useSettings';
-import { BillItem, Shop, Sack, Vegetable } from '@/lib/types';
+import { BillItem, Sack, Vegetable } from '@/lib/types';
 import {
-  ArrowLeft, Trash2, ChevronDown, IndianRupee, Save, AlertCircle, CornerDownLeft, Package, X
+  ArrowLeft, Trash2, IndianRupee, Save, AlertCircle, CornerDownLeft, Package, X
 } from 'lucide-react';
 import { fmtINR } from '@/lib/format';
 import clsx from 'clsx';
 
 interface DraftItem extends BillItem { _key: string; }
 
-function NewPurchaseForm() {
+export default function EditPurchasePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { shops, updateShop, loaded: shopsLoaded } = useShops();
   const { vegetables, loaded: vegsLoaded } = useVegetables();
-  const { addPurchase, loaded: purchasesLoaded } = usePurchases();
+  const { purchases, updatePurchase, loaded: purchasesLoaded } = usePurchases();
+  const { shops, updateShop, loaded: shopsLoaded } = useShops();
   const { settings, loaded: settingsLoaded } = useSettings();
 
   const [mounted, setMounted] = useState(false);
-  const [shopId, setShopId] = useState(searchParams.get('shopId') || '');
-  const [date, setDate] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  });
   const [items, setItems] = useState<DraftItem[]>([]);
+  const [date, setDate] = useState('');
   const [amountPaid, setAmountPaid] = useState('');
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
-
-  const [shopSearch, setShopSearch] = useState('');
-  const [showShopDropdown, setShowShopDropdown] = useState(false);
-  const [shopDropdownIdx, setShopDropdownIdx] = useState(0);
+  const [initialized, setInitialized] = useState(false);
 
   const [entryVegSearch, setEntryVegSearch] = useState('');
   const [entryVeg, setEntryVeg] = useState<Vegetable | null>(null);
@@ -44,30 +37,27 @@ function NewPurchaseForm() {
   const [entrySacks, setEntrySacks] = useState<Sack[]>([]);
   const [entrySackWeight, setEntrySackWeight] = useState('');
   const [showVegDropdown, setShowVegDropdown] = useState(false);
-  const [vegDropdownIdx, setVegDropdownIdx] = useState(-1);
+  const [vegDropdownIdx, setVegDropdownIdx] = useState(0);
 
-  const shopInputRef = useRef<HTMLInputElement>(null);
   const vegSearchRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
   const rateRef = useRef<HTMLInputElement>(null);
   const sackWeightRef = useRef<HTMLInputElement>(null);
-  const amountPaidRef = useRef<HTMLInputElement>(null);
   const vegDropdownRef = useRef<HTMLDivElement>(null);
-  const shopDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setMounted(true), []);
 
+  const purchase = purchases.find((p) => p.id === id);
+  const shop = shops.find((s) => s.id === purchase?.shopId);
+
   useEffect(() => {
-    if (mounted && shopsLoaded && vegsLoaded && purchasesLoaded) {
-      setTimeout(() => shopInputRef.current?.focus(), 50);
+    if (purchase && !initialized) {
+      setDate(purchase.date);
+      setAmountPaid(purchase.amountPaid > 0 ? String(purchase.amountPaid) : '');
+      setItems(purchase.items.map((item) => ({ ...item, _key: crypto.randomUUID() })));
+      setInitialized(true);
     }
-  }, [mounted, shopsLoaded, vegsLoaded, purchasesLoaded]);
-
-  const shop: Shop | undefined = shops.find((s) => s.id === shopId);
-
-  useEffect(() => {
-    if (shop && !shopSearch) setShopSearch(shop.name);
-  }, [shop, shopSearch]);
+  }, [purchase, initialized]);
 
   useEffect(() => {
     if (!showVegDropdown || !vegDropdownRef.current) return;
@@ -75,42 +65,21 @@ function NewPurchaseForm() {
     if (el) el.scrollIntoView({ block: 'nearest' });
   }, [vegDropdownIdx, showVegDropdown]);
 
-  useEffect(() => {
-    if (!showShopDropdown || !shopDropdownRef.current) return;
-    const el = shopDropdownRef.current.children[shopDropdownIdx] as HTMLElement;
-    if (el) el.scrollIntoView({ block: 'nearest' });
-  }, [shopDropdownIdx, showShopDropdown]);
-
-  const filteredShops = shops.filter((s) =>
-    !shopSearch ||
-    s.name.toLowerCase().includes(shopSearch.toLowerCase()) ||
-    (s.phone && s.phone.includes(shopSearch)) ||
-    (s.code && String(s.code).includes(shopSearch))
-  );
-
   const filteredVegs = (() => {
     const s = entryVegSearch.trim();
     if (!s) return vegetables;
     const n = parseInt(s);
     if (!isNaN(n) && String(n) === s) {
-      const codeMatch = vegetables.filter(v => v.code === n);
-      return codeMatch.length > 0 ? codeMatch : vegetables;
+      const m = vegetables.filter(v => v.code === n);
+      return m.length > 0 ? m : vegetables;
     }
     const sl = s.toLowerCase();
     return vegetables.filter(v =>
       v.name.toLowerCase().includes(sl) ||
       (v.englishName && v.englishName.toLowerCase().includes(sl)) ||
-      (v.nicknames && v.nicknames.some(n => n.toLowerCase().includes(sl)))
+      (v.nicknames && v.nicknames.some(nk => nk.toLowerCase().includes(sl)))
     );
   })();
-
-  const pickShop = useCallback((s: Shop) => {
-    setShopId(s.id);
-    setShopSearch(s.name);
-    setShowShopDropdown(false);
-    setShopDropdownIdx(0);
-    setTimeout(() => rateRef.current?.focus(), 50);
-  }, []);
 
   const pickVeg = useCallback((veg: Vegetable) => {
     setEntryVeg(veg);
@@ -118,7 +87,7 @@ function NewPurchaseForm() {
     setEntryDescription('');
     setEntryRate(settings.useDefaultRates ? String(veg.defaultPrice) : '');
     setShowVegDropdown(false);
-    setVegDropdownIdx(-1);
+    setVegDropdownIdx(0);
     setTimeout(() => sackWeightRef.current?.focus(), 0);
   }, [settings.useDefaultRates]);
 
@@ -143,47 +112,22 @@ function NewPurchaseForm() {
       pricePerKg: rate, sacks: entrySacks, totalWeight, amount: rate * totalWeight,
     }]);
     setEntryVeg(null); setEntryVegSearch(''); setEntryDescription(''); setEntryRate('');
-    setEntrySacks([]); setEntrySackWeight(''); setVegDropdownIdx(-1);
+    setEntrySacks([]); setEntrySackWeight('');
     setTimeout(() => rateRef.current?.focus(), 0);
   }, [entryVeg, entryRate, entrySacks, entryDescription]);
 
   const removeItem = (key: string) => setItems((prev) => prev.filter((i) => i._key !== key));
-  const removeSack = (id: string) => setEntrySacks((prev) => prev.filter((s) => s.id !== id));
-
-  const handleShopKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') { e.preventDefault(); setShopDropdownIdx(i => Math.min(i + 1, filteredShops.length - 1)); setShowShopDropdown(true); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setShopDropdownIdx(i => Math.max(i - 1, 0)); }
-    else if (e.key === 'Enter') { if (showShopDropdown && filteredShops[shopDropdownIdx]) { e.preventDefault(); pickShop(filteredShops[shopDropdownIdx]); } }
-    else if (e.key === 'Escape') setShowShopDropdown(false);
-  };
+  const removeSack = (sid: string) => setEntrySacks((prev) => prev.filter((s) => s.id !== sid));
 
   const handleVegSearchKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') { e.preventDefault(); setVegDropdownIdx((i) => Math.min(i + 1, filteredVegs.length - 1)); setShowVegDropdown(true); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setVegDropdownIdx((i) => Math.max(i - 1, 0)); }
-    else if (e.key === 'Enter' || e.key === 'Tab') {
-      if (vegDropdownIdx >= 0 && showVegDropdown && filteredVegs[vegDropdownIdx]) { e.preventDefault(); pickVeg(filteredVegs[vegDropdownIdx]); }
-      else if (entryVegSearch.trim() === '') { e.preventDefault(); setShowVegDropdown(false); amountPaidRef.current?.focus(); }
-    } else if (e.key === 'Escape') setShowVegDropdown(false);
-  };
-
-  const handleDescriptionKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); sackWeightRef.current?.focus(); }
-  };
-
-  const handleRateKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); vegSearchRef.current?.focus(); }
-  };
-
-  const handleSackWeightKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      if (entrySackWeight.trim() !== '') addSack();
-      else commitItem();
-    }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setVegDropdownIdx(i => Math.min(i + 1, filteredVegs.length - 1)); setShowVegDropdown(true); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setVegDropdownIdx(i => Math.max(i - 1, 0)); }
+    else if (e.key === 'Enter' || e.key === 'Tab') { if (showVegDropdown && filteredVegs[vegDropdownIdx]) { e.preventDefault(); pickVeg(filteredVegs[vegDropdownIdx]); } }
+    else if (e.key === 'Escape') setShowVegDropdown(false);
   };
 
   const subtotal = items.reduce((s, i) => s + i.amount, 0);
-  const previousBalance = shop?.pendingBalance ?? 0;
+  const previousBalance = purchase?.previousBalance ?? 0;
   const totalDue = subtotal + previousBalance;
   const paid = parseFloat(amountPaid) || 0;
   const newBalance = totalDue - paid;
@@ -191,50 +135,52 @@ function NewPurchaseForm() {
 
   const handleSave = async () => {
     const errs: string[] = [];
-    if (!shopId) errs.push('Please select a shop.');
     if (items.length === 0) errs.push('Add at least one item.');
     if (errs.length > 0) { setErrors(errs); return; }
     setErrors([]);
     setSaving(true);
     try {
-      const purchase = await addPurchase({
-        shopId, shopName: shop!.name, date,
+      const oldBalance = purchase!.newBalance;
+      await updatePurchase(id, {
+        shopId: purchase!.shopId,
+        shopName: purchase!.shopName,
+        date,
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         items: items.map(({ _key, ...rest }) => rest),
         subtotal, previousBalance, totalDue, amountPaid: paid, newBalance,
       });
-      if (paid > 0) {
-        await fetch('/api/shop-payments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: crypto.randomUUID(),
-            shopId,
-            shopName: shop!.name,
-            amount: paid,
-            date,
-            note: `Purchase #${purchase.purchaseNumber}`,
-            createdAt: new Date().toISOString(),
-            updateBalance: false,
-          }),
-        });
+      if (shop) {
+        const delta = newBalance - oldBalance;
+        updateShop(purchase!.shopId, { pendingBalance: shop.pendingBalance + delta });
       }
-      updateShop(shopId, { pendingBalance: newBalance });
-      router.push(`/purchases/${purchase.id}`);
+      router.push(`/purchases/${id}`);
     } finally { setSaving(false); }
   };
 
-  if (saving || !mounted || !shopsLoaded || !vegsLoaded || !purchasesLoaded || !settingsLoaded) {
-    return <div className="p-6 flex items-center justify-center min-h-64"><div className="text-gray-400 animate-pulse">Loading...</div></div>;
+  if (!mounted || !purchasesLoaded || !vegsLoaded || !settingsLoaded || !shopsLoaded) {
+    return (
+      <div className="p-6 lg:p-8 flex items-center justify-center min-h-64">
+        <div className="text-gray-400 animate-pulse">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!purchase) {
+    return (
+      <div className="p-6 lg:p-8 text-center">
+        <p className="text-gray-500 mb-4">Purchase not found.</p>
+        <Link href="/purchases" className="text-orange-600 hover:underline">Back to Purchases</Link>
+      </div>
+    );
   }
 
   return (
     <div className="p-4 lg:p-8 space-y-5 max-w-3xl">
       <div className="flex items-center gap-3">
-        <Link href="/purchases" className="text-gray-400 hover:text-gray-600 p-1"><ArrowLeft className="w-5 h-5" /></Link>
+        <Link href={`/purchases/${id}`} className="text-gray-400 hover:text-gray-600 p-1"><ArrowLeft className="w-5 h-5" /></Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">New Purchase</h1>
-          <p className="text-gray-500 text-sm">கொள்முதல் — Record what you bought from a shop</p>
+          <h1 className="text-2xl font-bold text-gray-900">Edit Purchase #{purchase.purchaseNumber}</h1>
+          <p className="text-gray-500 text-sm">{purchase.shopName}</p>
         </div>
       </div>
 
@@ -248,71 +194,16 @@ function NewPurchaseForm() {
         </div>
       )}
 
-      {/* Shop & Date */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
-        <h2 className="font-semibold text-gray-900">1. Shop (கடை)</h2>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div className="relative">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Shop <span className="text-red-500">*</span></label>
-            <div className="relative">
-              <input
-                ref={shopInputRef} type="text" value={shopSearch}
-                onChange={(e) => { setShopSearch(e.target.value); setShopId(''); setShowShopDropdown(true); setShopDropdownIdx(0); }}
-                onFocus={() => setShowShopDropdown(true)}
-                onBlur={() => setTimeout(() => setShowShopDropdown(false), 150)}
-                onKeyDown={handleShopKey}
-                placeholder="Type shop name or code..."
-                className={clsx('w-full border rounded-lg px-3 py-2.5 pr-9 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors',
-                  shop ? 'border-orange-500 bg-orange-50' : 'border-gray-400')}
-              />
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
-            {showShopDropdown && filteredShops.length > 0 && (
-              <div ref={shopDropdownRef} className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                {filteredShops.map((s, idx) => (
-                  <button key={s.id} type="button" onMouseDown={() => pickShop(s)}
-                    className={clsx('w-full text-left px-4 py-2.5 transition-colors border-b border-gray-50 last:border-0',
-                      idx === shopDropdownIdx ? 'bg-orange-100 font-medium' : 'hover:bg-orange-50')}>
-                    <div className="flex items-center gap-2">
-                      {s.code && <span className="text-xs font-mono bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{s.code}</span>}
-                      <span className="font-medium text-gray-900 text-sm">{s.name}</span>
-                    </div>
-                    {s.phone && <div className="text-gray-400 text-xs">{s.phone}</div>}
-                    {s.pendingBalance > 0 && <div className="text-red-500 text-xs">I owe: ₹{fmtINR(s.pendingBalance)}</div>}
-                  </button>
-                ))}
-              </div>
-            )}
-            {filteredShops.length === 0 && shopSearch && (
-              <div className="mt-1 text-xs text-gray-500">
-                Shop not found. <Link href="/shops" className="text-orange-600 hover:underline">Add shop →</Link>
-              </div>
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-              className="w-full border border-gray-400 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors" />
-          </div>
-        </div>
-        {shop && (
-          <div className={clsx('rounded-lg px-4 py-3 flex items-center justify-between text-sm',
-            previousBalance > 0 ? 'bg-red-50 border border-red-100' : 'bg-green-50 border border-green-100')}>
-            <span className={previousBalance > 0 ? 'text-red-700' : 'text-green-700'}>
-              Previous balance owed to <strong>{shop.name}</strong>
-            </span>
-            <span className={clsx('font-bold flex items-center gap-0.5', previousBalance > 0 ? 'text-red-700' : 'text-green-700')}>
-              <IndianRupee className="w-3.5 h-3.5" />
-              {fmtINR(Math.abs(previousBalance), 2)}
-              {previousBalance < 0 && ' (credit)'}
-            </span>
-          </div>
-        )}
+      {/* Date */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+          className="border border-gray-400 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors" />
       </div>
 
       {/* Items */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
-        <h2 className="font-semibold text-gray-900">2. Items (பொருட்கள்)</h2>
+        <h2 className="font-semibold text-gray-900">Items (பொருட்கள்)</h2>
 
         {items.length > 0 && (
           <div className="rounded-xl border border-gray-200 overflow-hidden">
@@ -360,18 +251,14 @@ function NewPurchaseForm() {
           </div>
         )}
 
-        {/* Entry row */}
+        {/* Add vegetable entry */}
         <div className="space-y-2">
-          <p className="text-xs text-gray-400 hidden sm:flex items-center gap-1">
-            <CornerDownLeft className="w-3 h-3" />
-            Rate/kg → Search veg → Enter each sack weight → Empty Enter to add item
-          </p>
-
           {/* Rate first */}
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">₹</span>
             <input ref={rateRef} type="number" min="0" step="0.5" value={entryRate}
-              onChange={(e) => setEntryRate(e.target.value)} onKeyDown={handleRateKey}
+              onChange={(e) => setEntryRate(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); vegSearchRef.current?.focus(); } }}
               placeholder="Rate / kg"
               className="w-full border border-gray-400 rounded-lg pl-7 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors" />
           </div>
@@ -382,23 +269,26 @@ function NewPurchaseForm() {
               ref={vegSearchRef} type="text" value={entryVegSearch}
               onChange={(e) => {
                 setEntryVegSearch(e.target.value); setEntryVeg(null); setEntryDescription('');
-                setEntrySacks([]); setShowVegDropdown(true); setVegDropdownIdx(e.target.value.trim() ? 0 : -1);
+                setEntrySacks([]); setShowVegDropdown(true); setVegDropdownIdx(0);
               }}
               onKeyDown={handleVegSearchKey}
               onFocus={() => setShowVegDropdown(true)}
               onBlur={() => setTimeout(() => setShowVegDropdown(false), 150)}
-              placeholder="🥦 Search vegetable or type code number..."
+              placeholder="🥦 Search vegetable to add..."
               className={clsx('w-full border rounded-lg px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors',
                 entryVeg ? 'border-orange-500 bg-orange-50' : 'border-gray-400')}
               autoComplete="off"
             />
             {entryVeg && (
-              <div className="mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="mt-2">
                 <label className="block text-[10px] font-medium text-gray-400 mb-0.5 ml-1">Custom Name / Description (Optional)</label>
-                <input ref={descriptionRef} type="text" value={entryDescription}
-                  onChange={(e) => setEntryDescription(e.target.value)} onKeyDown={handleDescriptionKey}
+                <input
+                  ref={descriptionRef} type="text" value={entryDescription}
+                  onChange={(e) => setEntryDescription(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); sackWeightRef.current?.focus(); } }}
                   placeholder="Override vegetable name or add detail..."
-                  className="w-full border border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors" />
+                  className="w-full border border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+                />
               </div>
             )}
             {showVegDropdown && filteredVegs.length > 0 && (
@@ -406,7 +296,7 @@ function NewPurchaseForm() {
                 {filteredVegs.map((v, idx) => (
                   <button key={v.id} type="button" onMouseDown={() => pickVeg(v)}
                     className={clsx('w-full text-left px-4 py-2.5 text-sm border-b border-gray-50 last:border-0 transition-colors flex items-center gap-2',
-                      idx === vegDropdownIdx ? 'bg-blue-200 text-green-900 font-bold' : 'hover:bg-gray-50')}>
+                      idx === vegDropdownIdx ? 'bg-blue-200 font-bold' : 'hover:bg-gray-50')}>
                     {v.code && <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded shrink-0">{v.code}</span>}
                     <span>{v.emoji} {v.name}</span>
                     {v.englishName && <span className="text-gray-500 text-xs">({v.englishName})</span>}
@@ -422,7 +312,8 @@ function NewPurchaseForm() {
             <div className="relative flex-1">
               <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               <input ref={sackWeightRef} type="number" min="0" step="0.1" value={entrySackWeight}
-                onChange={(e) => setEntrySackWeight(e.target.value)} onKeyDown={handleSackWeightKey}
+                onChange={(e) => setEntrySackWeight(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (entrySackWeight.trim()) addSack(); else commitItem(); } }}
                 placeholder="Sack kg (Enter to add)"
                 className={clsx('w-full border rounded-lg pl-9 pr-2 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors',
                   entrySacks.length > 0 ? 'border-orange-500 bg-orange-50' : 'border-gray-400')} />
@@ -449,20 +340,13 @@ function NewPurchaseForm() {
               <span className="inline-flex items-center text-xs text-gray-500 px-1">= {entrySacksTotal} kg</span>
             </div>
           )}
-
-          {entryVeg && entryRate && entrySacks.length > 0 && (
-            <div className="text-xs text-gray-500 px-1 flex items-center gap-1">
-              <span className="text-orange-600 font-medium">{entryVeg.emoji} {entryDescription || entryVeg.name}</span>
-              — {entrySacks.length} மூடை ({entrySacksTotal} kg) × ₹{fmtINR(parseFloat(entryRate) || 0, 2)} =
-              <span className="font-semibold text-gray-800">₹{fmtINR(entrySacksTotal * parseFloat(entryRate), 2)}</span>
-            </div>
-          )}
         </div>
       </div>
 
       {/* Payment */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
-        <h2 className="font-semibold text-gray-900">3. Payment (கட்டணம்)</h2>
+        <h2 className="font-semibold text-gray-900">Payment (கட்டணம்)</h2>
+
         <div className="space-y-2 text-sm">
           <div className="flex justify-between text-gray-700"><span>Today&apos;s Purchase Total</span><span className="font-semibold">₹{fmtINR(subtotal, 2)}</span></div>
           {previousBalance !== 0 && (
@@ -473,11 +357,12 @@ function NewPurchaseForm() {
           )}
           <div className="flex justify-between font-bold text-gray-900 border-t pt-2 text-base"><span>நிகர பாக்கி (Total I owe)</span><span>₹{fmtINR(totalDue, 2)}</span></div>
         </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">கட்டிய தொகை — Amount Paid to Shop (₹)</label>
           <div className="relative">
             <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input ref={amountPaidRef} type="number" min="0" step="0.50" value={amountPaid}
+            <input type="number" min="0" step="0.50" value={amountPaid}
               onChange={(e) => setAmountPaid(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
               placeholder="0.00"
@@ -491,6 +376,7 @@ function NewPurchaseForm() {
             </div>
           )}
         </div>
+
         <div className={clsx('rounded-xl p-4 flex items-center justify-between',
           newBalance > 0 ? 'bg-red-50 border border-red-100' : newBalance < 0 ? 'bg-blue-50 border border-blue-100' : 'bg-green-50 border border-green-100')}>
           <div>
@@ -505,20 +391,12 @@ function NewPurchaseForm() {
       </div>
 
       <div className="flex gap-3 pb-4">
-        <Link href="/purchases" className="flex-1 sm:flex-none border border-gray-200 text-gray-700 px-6 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors text-center">Cancel</Link>
+        <Link href={`/purchases/${id}`} className="flex-1 sm:flex-none border border-gray-200 text-gray-700 px-6 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors text-center">Cancel</Link>
         <button type="button" onClick={handleSave} disabled={saving}
           className="flex-1 flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-sm disabled:opacity-60">
-          <Save className="w-4 h-4" />{saving ? 'Saving...' : 'Save Purchase'}
+          <Save className="w-4 h-4" />{saving ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
     </div>
-  );
-}
-
-export default function NewPurchasePage() {
-  return (
-    <Suspense fallback={<div className="p-6 flex items-center justify-center min-h-64"><div className="text-gray-400 animate-pulse">Loading...</div></div>}>
-      <NewPurchaseForm />
-    </Suspense>
   );
 }

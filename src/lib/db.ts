@@ -309,6 +309,9 @@ function runMigrations(db: DatabaseSync) {
 
   const shopPayCols = (db.prepare('PRAGMA table_info(shop_payments)').all() as unknown as { name: string }[]).map(c => c.name);
   if (!shopPayCols.includes('discount')) db.exec('ALTER TABLE shop_payments ADD COLUMN discount REAL');
+
+  const shopCols = (db.prepare('PRAGMA table_info(shops)').all() as unknown as { name: string }[]).map(c => c.name);
+  if (!shopCols.includes('nickname')) db.exec('ALTER TABLE shops ADD COLUMN nickname TEXT');
 }
 
 // ── Company settings ─────────────────────────────────────────────────────────
@@ -684,13 +687,14 @@ export function updateCollectionAmount(id: string, newAmount: number): Collectio
 // ── Shop CRUD ─────────────────────────────────────────────────────────────────
 
 interface DBShop {
-  id: string; name: string; phone: string | null;
+  id: string; name: string; nickname: string | null; phone: string | null;
   code: number | null; pending_balance: number; created_at: string;
 }
 
 function mapShop(row: DBShop): Shop {
   return {
     id: row.id, name: row.name,
+    nickname: row.nickname ?? undefined,
     phone: row.phone ?? undefined,
     code: row.code ?? undefined,
     pendingBalance: row.pending_balance,
@@ -712,8 +716,8 @@ export function getShopById(id: string): Shop | null {
 export function createShop(s: Shop): Shop {
   const db = getDb();
   db.prepare(
-    'INSERT INTO shops (id, name, phone, code, pending_balance, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(s.id, s.name, s.phone ?? null, s.code ?? null, s.pendingBalance, s.createdAt);
+    'INSERT INTO shops (id, name, nickname, phone, code, pending_balance, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run(s.id, s.name, s.nickname ?? null, s.phone ?? null, s.code ?? null, s.pendingBalance, s.createdAt);
   return s;
 }
 
@@ -721,6 +725,7 @@ export function updateShop(id: string, data: Partial<Shop>): void {
   const db = getDb();
   const map: Record<string, string | number | null | undefined> = {};
   if (data.name !== undefined) map.name = data.name;
+  if ('nickname' in data) map.nickname = data.nickname ?? null;
   if ('phone' in data) map.phone = data.phone ?? null;
   if ('code' in data) map.code = data.code ?? null;
   if (data.pendingBalance !== undefined) map.pending_balance = data.pendingBalance;
@@ -1058,6 +1063,44 @@ export function createFarmerBill(data: Omit<FarmerBill, 'billNumber'> & { billNu
 
 export function deleteFarmerBill(id: string): void {
   getDb().prepare('DELETE FROM farmer_bills WHERE id = ?').run(id);
+}
+
+export function updateFarmerBill(id: string, data: Omit<FarmerBill, 'id' | 'billNumber' | 'createdAt'>): FarmerBill | null {
+  const db = getDb();
+  const existing = getFarmerBillById(id);
+  if (!existing) return null;
+
+  const updated: FarmerBill = { ...existing, ...data };
+
+  const insertItem = db.prepare(
+    `INSERT INTO farmer_bill_items (id, farmer_bill_id, vegetable_id, vegetable_name, description, emoji, price_per_kg, total_weight, amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+  const insertSack = db.prepare('INSERT INTO farmer_bill_sacks (id, farmer_bill_item_id, weight) VALUES (?, ?, ?)');
+
+  txn(db, () => {
+    db.prepare('DELETE FROM farmer_bill_items WHERE farmer_bill_id = ?').run(id);
+    db.prepare(`
+      UPDATE farmer_bills SET
+        farmer_id = ?, farmer_name = ?, date = ?, subtotal = ?,
+        commission_rate = ?, commission = ?, coolie = ?, vadakai = ?,
+        net_amount = ?, previous_balance = ?, total_to_pay = ?,
+        amount_paid = ?, new_balance = ?
+      WHERE id = ?
+    `).run(
+      updated.farmerId, updated.farmerName, updated.date, updated.subtotal,
+      updated.commissionRate, updated.commission, updated.coolie, updated.vadakai,
+      updated.netAmount, updated.previousBalance, updated.totalToPay,
+      updated.amountPaid, updated.newBalance,
+      id
+    );
+    for (const item of updated.items) {
+      const itemId = crypto.randomUUID();
+      insertItem.run(itemId, id, item.vegetableId, item.vegetableName, item.description ?? null, item.emoji, item.pricePerKg, item.totalWeight, item.amount);
+      for (const sack of item.sacks) insertSack.run(sack.id, itemId, sack.weight);
+    }
+  });
+
+  return getFarmerBillById(id);
 }
 
 // ── Farmer Payments CRUD ──────────────────────────────────────────────────────

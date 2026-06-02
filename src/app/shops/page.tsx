@@ -14,7 +14,7 @@ export default function ShopsPage() {
   const [mounted, setMounted] = useState(false);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', phone: '', code: '', pendingBalance: '' });
+  const [form, setForm] = useState({ name: '', nickname: '', phone: '', code: '', pendingBalance: '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [payTarget, setPayTarget] = useState<Shop | null>(null);
@@ -42,6 +42,7 @@ export default function ShopsPage() {
     .filter((s) =>
       !search ||
       s.name.toLowerCase().includes(search.toLowerCase()) ||
+      (s.nickname && s.nickname.toLowerCase().includes(search.toLowerCase())) ||
       (s.phone && s.phone.includes(search)) ||
       (s.code && String(s.code).includes(search))
     )
@@ -59,11 +60,12 @@ export default function ShopsPage() {
     setSaving(true);
     addShop({
       name: form.name.trim(),
+      nickname: form.nickname.trim() || undefined,
       phone: form.phone.trim() || undefined,
       code: form.code ? parseInt(form.code) : undefined,
       pendingBalance: parseFloat(form.pendingBalance) || 0,
     });
-    setForm({ name: '', phone: '', code: '', pendingBalance: '' });
+    setForm({ name: '', nickname: '', phone: '', code: '', pendingBalance: '' });
     setShowForm(false);
     setSaving(false);
   };
@@ -168,6 +170,7 @@ export default function ShopsPage() {
                     {shop.name}
                     {shop.code && <span className="text-xs font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{shop.code}</span>}
                   </div>
+                  {shop.nickname && <div className="text-gray-500 text-xs italic">{shop.nickname}</div>}
                   {shop.phone && <div className="text-gray-400 text-xs">{shop.phone}</div>}
                   <div className="text-xs text-gray-400">{purchaseCountMap[shop.id] || 0} purchases</div>
                 </div>
@@ -212,11 +215,19 @@ export default function ShopsPage() {
             </div>
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
               {error && <div className="text-red-600 text-sm bg-red-50 px-3 py-2 rounded-lg">{error}</div>}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Shop Name <span className="text-red-500">*</span></label>
-                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="e.g. Murugan Vegetables"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm" autoFocus />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Shop Name <span className="text-red-500">*</span></label>
+                  <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="e.g. Murugan Vegetables"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm" autoFocus />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nickname</label>
+                  <input value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })}
+                    placeholder="e.g. முருகன்"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm" />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

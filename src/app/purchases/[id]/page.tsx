@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { usePurchases, useShops } from '@/lib/storage';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Trash2, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import PurchaseBillPreview from '@/components/PurchaseBillPreview';
 
@@ -64,6 +64,13 @@ export default function PurchaseDetailPage() {
               className="text-orange-600 hover:text-orange-800 text-sm border border-orange-200 hover:border-orange-300 px-3 py-1.5 rounded-lg transition-colors"
             >
               {purchase.shopName}&apos;s Profile
+            </Link>
+            <Link
+              href={`/purchases/${id}/edit`}
+              className="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 text-sm border border-blue-200 hover:border-blue-300 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Edit
             </Link>
             <button
               onClick={() => setDeleteConfirm(true)}
