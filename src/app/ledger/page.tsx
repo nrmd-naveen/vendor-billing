@@ -118,6 +118,7 @@ function ShopDropdown({ shops, selected, onSelect }: {
     shops.filter(s =>
       !query ||
       s.name.toLowerCase().includes(query.toLowerCase()) ||
+      (s.nickname && s.nickname.toLowerCase().includes(query.toLowerCase())) ||
       (s.phone && s.phone.includes(query)) ||
       (s.code && String(s.code).includes(query))
     ).sort((a, b) => (b.pendingBalance || 0) - (a.pendingBalance || 0)),
@@ -167,7 +168,7 @@ function ShopDropdown({ shops, selected, onSelect }: {
                 autoFocus
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder="Search by name, phone, code…"
+                placeholder="Search by name, nickname, phone, code…"
                 className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
               />
             </div>
@@ -189,7 +190,10 @@ function ShopDropdown({ shops, selected, onSelect }: {
                     {shop.name.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 truncate">{shop.name}</div>
+                    <div className="text-sm font-medium text-gray-900 truncate">
+                      {shop.name}
+                      {shop.nickname && <span className="text-gray-500 text-xs italic ml-1.5">({shop.nickname})</span>}
+                    </div>
                     {shop.phone && <div className="text-xs text-gray-400">{shop.phone}</div>}
                   </div>
                   <span className={clsx('text-xs font-semibold shrink-0', shop.pendingBalance > 0 ? 'text-red-500' : shop.pendingBalance < 0 ? 'text-green-600' : 'text-gray-400')}>

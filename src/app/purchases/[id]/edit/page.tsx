@@ -85,11 +85,13 @@ export default function EditPurchasePage({ params }: { params: Promise<{ id: str
     setEntryVeg(veg);
     setEntryVegSearch(veg.name);
     setEntryDescription('');
-    setEntryRate(settings.useDefaultRates ? String(veg.defaultPrice) : '');
+    if (!entryRate) {
+      setEntryRate(settings.useDefaultRates ? String(veg.defaultPrice) : '');
+    }
     setShowVegDropdown(false);
     setVegDropdownIdx(0);
     setTimeout(() => sackWeightRef.current?.focus(), 0);
-  }, [settings.useDefaultRates]);
+  }, [settings.useDefaultRates, entryRate]);
 
   const addSack = useCallback(() => {
     const w = parseFloat(entrySackWeight);

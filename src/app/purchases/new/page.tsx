@@ -84,6 +84,7 @@ function NewPurchaseForm() {
   const filteredShops = shops.filter((s) =>
     !shopSearch ||
     s.name.toLowerCase().includes(shopSearch.toLowerCase()) ||
+    (s.nickname && s.nickname.toLowerCase().includes(shopSearch.toLowerCase())) ||
     (s.phone && s.phone.includes(shopSearch)) ||
     (s.code && String(s.code).includes(shopSearch))
   );
@@ -116,11 +117,13 @@ function NewPurchaseForm() {
     setEntryVeg(veg);
     setEntryVegSearch(veg.name);
     setEntryDescription('');
-    setEntryRate(settings.useDefaultRates ? String(veg.defaultPrice) : '');
+    if (!entryRate) {
+      setEntryRate(settings.useDefaultRates ? String(veg.defaultPrice) : '');
+    }
     setShowVegDropdown(false);
     setVegDropdownIdx(-1);
     setTimeout(() => sackWeightRef.current?.focus(), 0);
-  }, [settings.useDefaultRates]);
+  }, [settings.useDefaultRates, entryRate]);
 
   const addSack = useCallback(() => {
     const w = parseFloat(entrySackWeight);
@@ -261,7 +264,7 @@ function NewPurchaseForm() {
                 onFocus={() => setShowShopDropdown(true)}
                 onBlur={() => setTimeout(() => setShowShopDropdown(false), 150)}
                 onKeyDown={handleShopKey}
-                placeholder="Type shop name or code..."
+                placeholder="Type shop name, nickname or code..."
                 className={clsx('w-full border rounded-lg px-3 py-2.5 pr-9 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors',
                   shop ? 'border-orange-500 bg-orange-50' : 'border-gray-400')}
               />
@@ -276,6 +279,7 @@ function NewPurchaseForm() {
                     <div className="flex items-center gap-2">
                       {s.code && <span className="text-xs font-mono bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{s.code}</span>}
                       <span className="font-medium text-gray-900 text-sm">{s.name}</span>
+                      {s.nickname && <span className="text-gray-500 text-xs">({s.nickname})</span>}
                     </div>
                     {s.phone && <div className="text-gray-400 text-xs">{s.phone}</div>}
                     {s.pendingBalance > 0 && <div className="text-red-500 text-xs">I owe: ₹{fmtINR(s.pendingBalance)}</div>}

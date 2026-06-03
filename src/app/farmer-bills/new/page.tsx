@@ -109,10 +109,12 @@ function NewFarmerBillForm() {
 
   const pickVeg = useCallback((veg: Vegetable) => {
     setEntryVeg(veg); setEntryVegSearch(veg.name); setEntryDescription('');
-    setEntryRate(settings.useDefaultRates ? String(veg.defaultPrice) : '');
+    if (!entryRate) {
+      setEntryRate(settings.useDefaultRates ? String(veg.defaultPrice) : '');
+    }
     setShowVegDropdown(false); setVegDropdownIdx(-1);
     setTimeout(() => sackWeightRef.current?.focus(), 0);
-  }, [settings.useDefaultRates]);
+  }, [settings.useDefaultRates, entryRate]);
 
   const addSack = useCallback(() => {
     const w = parseFloat(entrySackWeight);

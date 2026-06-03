@@ -95,10 +95,10 @@ export default function ShopDetailPage() {
               <div className="flex items-center gap-2">
                 <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                   className="border border-gray-300 rounded-lg px-3 py-1.5 text-xl font-bold focus:outline-none focus:ring-2 focus:ring-orange-500" autoFocus
-                  placeholder="Shop name" />
+                  placeholder="e.g. முருகன் காய்கறி கடை" />
                 <input value={editForm.nickname} onChange={(e) => setEditForm({ ...editForm, nickname: e.target.value })}
                   className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 w-32"
-                  placeholder="Nickname" />
+                  placeholder="e.g. Murugan" />
                 <button onClick={handleSaveEdit} className="text-green-600 p-1 hover:bg-green-50 rounded-lg"><Check className="w-5 h-5" /></button>
                 <button onClick={() => setEditing(false)} className="text-gray-400 p-1 hover:bg-gray-50 rounded-lg"><X className="w-5 h-5" /></button>
               </div>

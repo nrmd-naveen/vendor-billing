@@ -138,7 +138,7 @@ export default function ShopsPage() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input
           value={search} onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name, phone, code..."
+          placeholder="Search by name, nickname, phone, code..."
           className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
         />
         {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="w-4 h-4 text-gray-400" /></button>}
@@ -219,13 +219,13 @@ export default function ShopsPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Shop Name <span className="text-red-500">*</span></label>
                   <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="e.g. Murugan Vegetables"
+                    placeholder="e.g. முருகன் காய்கறி கடை"
                     className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm" autoFocus />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nickname</label>
                   <input value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })}
-                    placeholder="e.g. முருகன்"
+                    placeholder="e.g. Murugan Vegetables"
                     className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm" />
                 </div>
               </div>
