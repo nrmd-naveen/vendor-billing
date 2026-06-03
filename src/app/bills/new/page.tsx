@@ -57,6 +57,15 @@ function NewBillForm() {
   const amountPaidRef = useRef<HTMLInputElement>(null);
   const vegDropdownRef = useRef<HTMLDivElement>(null);
   const custDropdownRef = useRef<HTMLDivElement>(null);
+  const itemsSectionRef = useRef<HTMLDivElement>(null);
+
+  const handleItemsFocus = () => {
+    if (!itemsSectionRef.current) return;
+    const rect = itemsSectionRef.current.getBoundingClientRect();
+    if (rect.top > 10) {
+      itemsSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   useEffect(() => setMounted(true), []);
 
@@ -371,7 +380,11 @@ function NewBillForm() {
       </div>
 
       {/* Items */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+      <div
+        ref={itemsSectionRef}
+        onFocus={handleItemsFocus}
+        className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4"
+      >
         <h2 className="font-semibold text-gray-900">2. Items</h2>
 
         {items.length > 0 && (

@@ -47,6 +47,15 @@ export default function EditFarmerBillPage({ params }: { params: Promise<{ id: s
   const rateRef = useRef<HTMLInputElement>(null);
   const sackWeightRef = useRef<HTMLInputElement>(null);
   const vegDropdownRef = useRef<HTMLDivElement>(null);
+  const itemsSectionRef = useRef<HTMLDivElement>(null);
+
+  const handleItemsFocus = () => {
+    if (!itemsSectionRef.current) return;
+    const rect = itemsSectionRef.current.getBoundingClientRect();
+    if (rect.top > 10) {
+      itemsSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   useEffect(() => setMounted(true), []);
 
@@ -217,7 +226,11 @@ export default function EditFarmerBillPage({ params }: { params: Promise<{ id: s
       </div>
 
       {/* Items */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+      <div
+        ref={itemsSectionRef}
+        onFocus={handleItemsFocus}
+        className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4"
+      >
         <h2 className="font-semibold text-gray-900">Items (பொருட்கள்)</h2>
 
         {items.length > 0 && (
