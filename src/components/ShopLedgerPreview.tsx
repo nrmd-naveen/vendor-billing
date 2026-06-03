@@ -5,7 +5,7 @@ import { useSettings } from '@/lib/useSettings';
 import { fmtINR } from '@/lib/format';
 import { Printer, Download, FileDown } from 'lucide-react';
 import { toPng } from 'html-to-image';
-import { CompanySettings } from '@/lib/types';
+import { jsPDF } from 'jspdf';
 
 export interface LedgerItemRow {
   name: string;
@@ -51,233 +51,13 @@ function fmtDateLong(dateStr: string) {
   return `${d} ${months[parseInt(m) - 1]} ${y}`;
 }
 
-function buildPrintDoc(
-  settings: CompanySettings,
-  shopName: string,
-  shopPhone: string | undefined,
-  dateFrom: string,
-  dateTo: string,
-  openingBalance: number,
-  entries: LedgerEntry[],
-  closingBalance: number,
-  totalPurchases: number,
-  totalPayments: number,
-  fileStamp: string,
-): string {
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const fmtD = (s: string) => { const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; };
-  const fmtDL = (s: string) => { const [y,m,d] = s.split('-'); return `${d} ${months[parseInt(m)-1]} ${y}`; };
-  const money = (n: number) => `&#8377;${fmtINR(Math.abs(n), 2)}`;
-
-  const rows = entries.map((e, idx) => {
-    const bg = idx % 2 === 1 ? '#f9f9f9' : '#ffffff';
-    let descCell = '';
-    if (e.type === 'purchase' && e.items && e.items.length > 0) {
-      const itemRows = e.items.map(it => `
-        <tr>
-          <td style="padding:2px 4px 2px 0;border-bottom:1px solid #eee;">${it.name}</td>
-          <td style="padding:2px 4px;text-align:center;border-bottom:1px solid #eee;">${it.sacks}</td>
-          <td style="padding:2px 4px;text-align:right;border-bottom:1px solid #eee;">${it.totalWeight} கி</td>
-          <td style="padding:2px 4px;text-align:right;border-bottom:1px solid #eee;font-weight:600;">${money(it.amount)}</td>
-        </tr>`).join('');
-      descCell = `
-        <table style="width:100%;border-collapse:collapse;font-size:10px;">
-          <thead>
-            <tr style="color:#888;border-bottom:1px solid #ccc;">
-              <th style="text-align:left;padding:2px 4px 3px 0;font-weight:600;">பொருள்</th>
-              <th style="text-align:center;padding:2px 4px;font-weight:600;">மூடை</th>
-              <th style="text-align:right;padding:2px 4px;font-weight:600;">எடை</th>
-              <th style="text-align:right;padding:2px 4px;font-weight:600;">தொகை</th>
-            </tr>
-          </thead>
-          <tbody>${itemRows}</tbody>
-        </table>`;
-    } else if (e.type === 'payment') {
-      descCell = `<div style="font-weight:600;color:#166534;">கட்டணம்</div>
-        ${e.note ? `<div style="color:#666;font-size:10px;margin-top:1px;">குறிப்பு: ${e.note}</div>` : ''}
-        ${e.discount && e.discount > 0 ? `<div style="color:#b45309;font-size:10px;">தள்ளுபடி: ${money(e.discount)}</div>` : ''}`;
-    }
-
-    const balColor = e.balance > 0 ? '#b91c1c' : e.balance < 0 ? '#166534' : '#6b7280';
-    const balSuffix = e.balance < 0 ? ' வ' : '';
-
-    return `
-      <tr style="background:${bg};border-bottom:1px solid #e5e7eb;vertical-align:top;">
-        <td style="padding:6px 6px;text-align:center;border-right:1px solid #d1d5db;white-space:nowrap;font-size:11px;">${fmtD(e.date)}</td>
-        <td style="padding:6px 4px;text-align:center;border-right:1px solid #d1d5db;font-size:10px;color:#666;">${e.ref}</td>
-        <td style="padding:5px 8px;border-right:1px solid #d1d5db;">${descCell}</td>
-        <td style="padding:6px 8px;text-align:right;border-right:1px solid #d1d5db;font-weight:500;font-size:11px;">
-          ${e.debit > 0 ? money(e.debit) : ''}
-        </td>
-        <td style="padding:6px 8px;text-align:right;border-right:1px solid #d1d5db;font-weight:500;font-size:11px;color:#166534;">
-          ${e.credit > 0 ? money(e.credit) : ''}
-        </td>
-        <td style="padding:6px 8px;text-align:right;font-weight:600;font-size:11px;color:${balColor};">
-          ${money(e.balance)}${balSuffix}
-        </td>
-      </tr>`;
-  }).join('');
-
-  const obColor = openingBalance > 0 ? '#b91c1c' : openingBalance < 0 ? '#166534' : '#6b7280';
-  const cbColor = closingBalance > 0 ? '#b91c1c' : closingBalance < 0 ? '#166534' : '#6b7280';
-
-  const logoLeft = settings.logoLeft
-    ? `<img src="${settings.logoLeft}" style="width:70px;height:70px;object-fit:contain;" />`
-    : `<div style="width:70px;height:70px;background:#f3f4f6;border-radius:6px;"></div>`;
-  const logoRight = settings.logoRight
-    ? `<img src="${settings.logoRight}" style="width:70px;height:70px;object-fit:contain;" />`
-    : `<div style="width:70px;height:70px;background:#f3f4f6;border-radius:6px;"></div>`;
-
-  const contactBar = (settings.contact1Name || settings.contact2Name) ? `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 12px;border-bottom:1px solid #374151;">
-      <div style="font-size:11px;font-weight:600;">${settings.contact1Name || ''}<br/>${settings.contact1Phone || ''}</div>
-      <div style="font-size:13px;font-weight:700;text-align:center;">கடை கணக்கு</div>
-      <div style="font-size:11px;font-weight:600;text-align:right;">${settings.contact2Name || ''}<br/>${settings.contact2Phone || ''}</div>
-    </div>` : '';
-
-  const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
-
-  return `<!DOCTYPE html>
-<html lang="ta">
-<head>
-  <meta charset="UTF-8"/>
-  <title>Ledger_${shopName.replace(/\s+/g, '_')}_${fileStamp}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;500;600;700;900&display=swap" rel="stylesheet">
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Noto Sans Tamil', Arial, sans-serif;
-      font-size: 12px;
-      color: #111827;
-      background: white;
-    }
-    @page {
-      size: A4 portrait;
-      margin: 14mm 12mm 14mm 12mm;
-    }
-    @media print {
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .no-print { display: none !important; }
-      tr { page-break-inside: avoid; }
-    }
-    .wrapper {
-      max-width: 740px;
-      margin: 0 auto;
-      border: 2px solid #374151;
-    }
-    table { border-collapse: collapse; }
-  </style>
-</head>
-<body>
-<div class="wrapper">
-
-  <!-- Header -->
-  <div style="border-bottom:2px solid #374151;padding:10px 12px;">
-    ${settings.tagline ? `<div style="text-align:center;font-size:10px;color:#6b7280;margin-bottom:4px;">${settings.tagline}</div>` : ''}
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-      ${logoLeft}
-      <div style="flex:1;text-align:center;padding:0 8px;">
-        <div style="font-size:26px;font-weight:900;color:#15803d;line-height:1.1;">${settings.name}</div>
-        ${settings.subtitle ? `<div style="font-size:12px;font-weight:600;color:#374151;margin-top:2px;">${settings.subtitle}</div>` : ''}
-        ${settings.address ? `<div style="font-size:10px;color:#6b7280;margin-top:2px;">${settings.address}</div>` : ''}
-      </div>
-      ${logoRight}
-    </div>
-  </div>
-
-  <!-- Contact bar -->
-  ${contactBar}
-
-  <!-- Shop + Period -->
-  <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 12px;border-bottom:1px solid #374151;background:#fafafa;">
-    <div>
-      <span style="font-size:10px;color:#6b7280;font-weight:600;">கடை: </span>
-      <span style="font-size:13px;font-weight:700;">${shopName}</span>
-      ${shopPhone ? `<span style="font-size:10px;color:#9ca3af;margin-left:6px;">${shopPhone}</span>` : ''}
-    </div>
-    <div style="text-align:right;">
-      <span style="font-size:10px;color:#6b7280;font-weight:600;">காலம்: </span>
-      <span style="font-size:11px;font-weight:500;">${fmtDL(dateFrom)} &mdash; ${fmtDL(dateTo)}</span>
-    </div>
-  </div>
-
-  <!-- Opening balance -->
-  <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 12px;background:#f3f4f6;border-bottom:1px solid #9ca3af;">
-    <span style="font-size:11px;font-weight:600;color:#374151;">ஆரம்ப இருப்பு</span>
-    <span style="font-size:11px;font-weight:700;color:${obColor};">
-      ${money(openingBalance)}${openingBalance < 0 ? ' (வரவு)' : openingBalance > 0 ? ' (பற்று)' : ''}
-    </span>
-  </div>
-
-  <!-- Ledger table -->
-  <table style="width:100%;table-layout:fixed;">
-    <colgroup>
-      <col style="width:12%;"/>
-      <col style="width:9%;"/>
-      <col style="width:35%;"/>
-      <col style="width:14%;"/>
-      <col style="width:14%;"/>
-      <col style="width:16%;"/>
-    </colgroup>
-    <thead>
-      <tr style="background:#f3f4f6;border-bottom:2px solid #374151;">
-        <th style="padding:7px 6px;text-align:center;border-right:1px solid #9ca3af;font-size:11px;font-weight:700;line-height:1.4;">தேதி</th>
-        <th style="padding:7px 4px;text-align:center;border-right:1px solid #9ca3af;font-size:11px;font-weight:700;line-height:1.4;">எண்</th>
-        <th style="padding:7px 8px;text-align:left;border-right:1px solid #9ca3af;font-size:11px;font-weight:700;line-height:1.4;">விவரம்</th>
-        <th style="padding:7px 8px;text-align:right;border-right:1px solid #9ca3af;font-size:11px;font-weight:700;line-height:1.4;">கொள்முதல்<br/><span style="font-weight:400;font-size:9px;">(பற்று)</span></th>
-        <th style="padding:7px 8px;text-align:right;border-right:1px solid #9ca3af;font-size:11px;font-weight:700;line-height:1.4;">கட்டணம்<br/><span style="font-weight:400;font-size:9px;">(வரவு)</span></th>
-        <th style="padding:7px 8px;text-align:right;font-size:11px;font-weight:700;line-height:1.4;">இருப்பு<br/><span style="font-weight:400;font-size:9px;">(பாக்கி)</span></th>
-      </tr>
-    </thead>
-    <tbody>
-      ${entries.length === 0
-        ? `<tr><td colspan="6" style="padding:24px;text-align:center;color:#9ca3af;">இந்த காலகட்டத்தில் பரிவர்த்தனை இல்லை</td></tr>`
-        : rows}
-    </tbody>
-    <tfoot>
-      <tr style="background:#f3f4f6;border-top:2px solid #374151;">
-        <td style="padding:8px 6px;border-right:1px solid #9ca3af;"></td>
-        <td style="padding:8px 4px;border-right:1px solid #9ca3af;"></td>
-        <td style="padding:8px 8px;border-right:1px solid #9ca3af;font-weight:700;font-size:12px;">மொத்தம்</td>
-        <td style="padding:8px 8px;text-align:right;border-right:1px solid #9ca3af;font-weight:700;font-size:12px;">${money(totalPurchases)}</td>
-        <td style="padding:8px 8px;text-align:right;border-right:1px solid #9ca3af;font-weight:700;font-size:12px;color:#166534;">${money(totalPayments)}</td>
-        <td style="padding:8px 8px;text-align:right;font-weight:700;font-size:12px;color:${cbColor};">${money(closingBalance)}${closingBalance < 0 ? ' வ' : ''}</td>
-      </tr>
-    </tfoot>
-  </table>
-
-  <!-- Closing balance bar -->
-  <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#f9fafb;border-top:2px solid #374151;">
-    <span style="font-size:13px;font-weight:700;">இறுதி இருப்பு</span>
-    <span style="font-size:15px;font-weight:900;color:${cbColor};">
-      ${money(closingBalance)} ${closingBalance < 0 ? '(வரவு)' : closingBalance > 0 ? '(பற்று)' : '(தீர்வு)'}
-    </span>
-  </div>
-
-  <!-- Summary strip -->
-  <div style="display:flex;justify-content:space-between;padding:5px 12px;border-top:1px solid #d1d5db;font-size:11px;color:#4b5563;">
-    <span><b>கொள்முதல்:</b> <span style="color:#b45309;font-weight:700;">${money(totalPurchases)}</span></span>
-    <span><b>கட்டணம்:</b> <span style="color:#166534;font-weight:700;">${money(totalPayments)}</span></span>
-    <span><b>பதிவுகள்:</b> <span style="font-weight:700;">${entries.length}</span></span>
-  </div>
-
-  <!-- Footer -->
-  <div style="padding:4px 12px;border-top:1px solid #e5e7eb;text-align:center;font-size:9px;color:#9ca3af;">
-    உருவாக்கப்பட்டது: ${today}${settings.contact1Phone ? ' &middot; ' + settings.contact1Phone : ''}
-  </div>
-
-</div>
-</body>
-</html>`;
-}
-
 export default function ShopLedgerPreview({
   shopName, shopPhone, dateFrom, dateTo, openingBalance,
   entries, closingBalance, totalPurchases, totalPayments,
 }: ShopLedgerPreviewProps) {
   const { settings } = useSettings();
   const [copied, setCopied] = useState(false);
+  const [pdfCopied, setPdfCopied] = useState(false);
 
   const makeStamp = () => {
     const n = new Date();
@@ -285,26 +65,32 @@ export default function ShopLedgerPreview({
     return `${n.getFullYear()}${p(n.getMonth()+1)}${p(n.getDate())}_${p(n.getHours())}${p(n.getMinutes())}${p(n.getSeconds())}`;
   };
 
-  const handleSavePDF = () => {
-    const html = buildPrintDoc(
-      settings, shopName, shopPhone, dateFrom, dateTo,
-      openingBalance, entries, closingBalance, totalPurchases, totalPayments,
-      makeStamp(),
-    );
-    const win = window.open('', '_blank');
-    if (!win) return;
-    win.document.write(html);
-    win.document.close();
-    // Wait for fonts then print
-    win.addEventListener('load', () => {
-      const fonts = (win.document as Document & { fonts?: { ready: Promise<unknown> } }).fonts;
-      if (fonts?.ready) {
-        fonts.ready.then(() => { win.focus(); win.print(); });
-      } else {
-        win.focus();
-        win.print();
-      }
-    });
+  const handleSavePDF = async () => {
+    const el = document.getElementById('shop-ledger-print-area');
+    if (!el) return;
+    try {
+      const dataUrl = await toPng(el, { cacheBust: true, backgroundColor: '#ffffff', quality: 1, pixelRatio: 2 });
+      
+      const width = el.offsetWidth;
+      const height = el.offsetHeight;
+      
+      const pdf = new jsPDF({
+        orientation: height > width ? 'portrait' : 'landscape',
+        unit: 'px',
+        format: [width, height]
+      });
+      
+      pdf.addImage(dataUrl, 'PNG', 0, 0, width, height);
+      pdf.save(`Ledger_${shopName.replace(/\s+/g, '_')}_${makeStamp()}.pdf`);
+
+      // Copy to clipboard
+      const blob = await fetch(dataUrl).then(r => r.blob());
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      setPdfCopied(true);
+      setTimeout(() => setPdfCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to save PDF:', err);
+    }
   };
 
   const handleSavePhoto = async () => {
@@ -329,9 +115,9 @@ export default function ShopLedgerPreview({
       <div className="flex justify-end gap-2 p-4 border-b border-gray-100 print:hidden">
         <button
           onClick={handleSavePDF}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm"
+          className={`flex items-center gap-2 ${pdfCopied ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm`}
         >
-          <FileDown className="w-4 h-4" /> Save PDF
+          <FileDown className="w-4 h-4" /> {pdfCopied ? 'Copied!' : 'Save PDF'}
         </button>
         <button
           onClick={handleSavePhoto}

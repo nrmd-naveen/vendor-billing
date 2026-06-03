@@ -279,8 +279,13 @@ export default function CollectionsPage() {
                         </div>
                         <div>
                           <div className="font-medium text-gray-900">{c.customerName}</div>
-                          <div className="text-gray-400 text-xs">
-                            {new Date(c.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          <div className="text-gray-400 text-xs flex items-center gap-2 mt-0.5">
+                            <span>{new Date(c.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                            {c.note && c.note.startsWith('Bill #') && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-medium text-[10px] border border-blue-100">
+                                {c.note}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>

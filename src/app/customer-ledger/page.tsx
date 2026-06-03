@@ -208,7 +208,7 @@ export default function CustomerLedgerPage() {
     const collectionsOnOrAfter = collections.filter(c => c.date >= from);
     return (
       selectedCustomer.pendingBalance
-      - billsOnOrAfter.reduce((s, b) => s + b.subtotal + b.coolie + b.vadakai - b.amountPaid, 0)
+      - billsOnOrAfter.reduce((s, b) => s + b.subtotal + b.coolie + b.vadakai, 0)
       + collectionsOnOrAfter.reduce((s, c) => s + c.amount, 0)
     );
   }, [selectedCustomer, customerBills, collections, from]);
@@ -223,7 +223,7 @@ export default function CustomerLedgerPage() {
         type: 'purchase' as const,
         ref: `#${b.billNumber}`,
         debit: b.subtotal + b.coolie + b.vadakai,
-        credit: b.amountPaid,
+        credit: 0,
         items: b.items.map((i): LedgerItemRow => ({
           name: i.vegetableName + (i.description ? ` (${i.description})` : ''),
           sacks: i.sacks.length,
@@ -260,7 +260,7 @@ export default function CustomerLedgerPage() {
     return {
       entries: withBalance,
       totalBills: rangedBills.reduce((s, e) => s + e.debit, 0),
-      totalCollections: rangedCollections.reduce((s, e) => s + e.credit, 0) + rangedBills.reduce((s, e) => s + e.credit, 0),
+      totalCollections: rangedCollections.reduce((s, e) => s + e.credit, 0),
       closingBalance: running,
     };
   }, [customerBills, collections, from, to, openingBalance]);

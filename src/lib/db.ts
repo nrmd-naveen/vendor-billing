@@ -588,13 +588,28 @@ export function createBill(data: Omit<Bill, 'billNumber'> & { billNumber?: numbe
       insertItem.run(itemId, bill.id, item.vegetableId, item.vegetableName, item.description ?? null, item.emoji, item.pricePerKg, item.totalWeight, item.amount);
       for (const sack of item.sacks) insertSack.run(sack.id, itemId, sack.weight);
     }
+
+    // Sync collections
+    if (bill.amountPaid > 0) {
+      const collectionNote = `Bill #${bill.billNumber}`;
+      db.prepare(
+        'INSERT INTO collections (id, customer_id, customer_name, amount, date, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).run(crypto.randomUUID(), bill.customerId, bill.customerName, bill.amountPaid, bill.date, collectionNote, new Date().toISOString());
+    }
   });
 
   return bill;
 }
 
 export function deleteBill(id: string): void {
-  getDb().prepare('DELETE FROM bills WHERE id = ?').run(id);
+  const db = getDb();
+  const bill = db.prepare('SELECT bill_number FROM bills WHERE id = ?').get(id) as { bill_number: number } | undefined;
+  txn(db, () => {
+    if (bill) {
+      db.prepare('DELETE FROM collections WHERE note = ?').run(`Bill #${bill.bill_number}`);
+    }
+    db.prepare('DELETE FROM bills WHERE id = ?').run(id);
+  });
 }
 
 export function updateBill(id: string, data: Omit<Bill, 'id' | 'billNumber' | 'createdAt'>): Bill | null {
@@ -630,6 +645,25 @@ export function updateBill(id: string, data: Omit<Bill, 'id' | 'billNumber' | 'c
       const itemId = crypto.randomUUID();
       insertItem.run(itemId, id, item.vegetableId, item.vegetableName, item.description ?? null, item.emoji, item.pricePerKg, item.totalWeight, item.amount);
       for (const sack of item.sacks) insertSack.run(sack.id, itemId, sack.weight);
+    }
+
+    // Sync collections
+    const collectionNote = `Bill #${updated.billNumber}`;
+    const existingCol = db.prepare('SELECT * FROM collections WHERE note = ?').get(collectionNote) as DBCollection | undefined;
+
+    if (updated.amountPaid > 0) {
+      if (existingCol) {
+        db.prepare('UPDATE collections SET amount = ?, date = ?, customer_name = ? WHERE id = ?')
+          .run(updated.amountPaid, updated.date, updated.customerName, existingCol.id);
+      } else {
+        db.prepare(
+          'INSERT INTO collections (id, customer_id, customer_name, amount, date, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        ).run(crypto.randomUUID(), updated.customerId, updated.customerName, updated.amountPaid, updated.date, collectionNote, new Date().toISOString());
+      }
+    } else {
+      if (existingCol) {
+        db.prepare('DELETE FROM collections WHERE id = ?').run(existingCol.id);
+      }
     }
   });
 
@@ -678,6 +712,19 @@ export function updateCollectionAmount(id: string, newAmount: number): Collectio
     db.prepare('UPDATE collections SET amount = ? WHERE id = ?').run(newAmount, id);
     if (diff !== 0) {
       db.prepare('UPDATE customers SET pending_balance = pending_balance - ? WHERE id = ?').run(diff, existing.customer_id);
+    }
+    // If the collection was created for a bill, update the bill's paid amount too
+    if (existing.note && existing.note.startsWith('Bill #')) {
+      const billNumStr = existing.note.replace('Bill #', '');
+      const billNum = parseInt(billNumStr);
+      if (!isNaN(billNum)) {
+        const bill = db.prepare('SELECT * FROM bills WHERE bill_number = ?').get(billNum) as unknown as DBBill | undefined;
+        if (bill) {
+          const newPaid = newAmount;
+          const newBal = bill.total_due - newPaid;
+          db.prepare('UPDATE bills SET amount_paid = ?, new_balance = ? WHERE id = ?').run(newPaid, newBal, bill.id);
+        }
+      }
     }
   });
   const updated = db.prepare('SELECT * FROM collections WHERE id = ?').get(id) as unknown as DBCollection;
@@ -830,13 +877,28 @@ export function createPurchase(data: Omit<Purchase, 'purchaseNumber'> & { purcha
       insertItem.run(itemId, purchase.id, item.vegetableId, item.vegetableName, item.description ?? null, item.emoji, item.pricePerKg, item.totalWeight, item.amount);
       for (const sack of item.sacks) insertSack.run(sack.id, itemId, sack.weight);
     }
+
+    // Sync shop payments
+    if (purchase.amountPaid > 0) {
+      const paymentNote = `Purchase #${purchase.purchaseNumber}`;
+      db.prepare(
+        'INSERT INTO shop_payments (id, shop_id, shop_name, amount, discount, date, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(crypto.randomUUID(), purchase.shopId, purchase.shopName, purchase.amountPaid, null, purchase.date, paymentNote, new Date().toISOString());
+    }
   });
 
   return purchase;
 }
 
 export function deletePurchase(id: string): void {
-  getDb().prepare('DELETE FROM purchases WHERE id = ?').run(id);
+  const db = getDb();
+  const purchase = db.prepare('SELECT purchase_number FROM purchases WHERE id = ?').get(id) as { purchase_number: number } | undefined;
+  txn(db, () => {
+    if (purchase) {
+      db.prepare('DELETE FROM shop_payments WHERE note = ?').run(`Purchase #${purchase.purchase_number}`);
+    }
+    db.prepare('DELETE FROM purchases WHERE id = ?').run(id);
+  });
 }
 
 export function updatePurchase(id: string, data: Omit<Purchase, 'id' | 'purchaseNumber' | 'createdAt'>): Purchase | null {
@@ -867,6 +929,25 @@ export function updatePurchase(id: string, data: Omit<Purchase, 'id' | 'purchase
       const itemId = crypto.randomUUID();
       insertItem.run(itemId, id, item.vegetableId, item.vegetableName, item.description ?? null, item.emoji, item.pricePerKg, item.totalWeight, item.amount);
       for (const sack of item.sacks) insertSack.run(sack.id, itemId, sack.weight);
+    }
+
+    // Sync shop payments
+    const paymentNote = `Purchase #${updated.purchaseNumber}`;
+    const existingPay = db.prepare('SELECT * FROM shop_payments WHERE note = ?').get(paymentNote) as DBShopPayment | undefined;
+
+    if (updated.amountPaid > 0) {
+      if (existingPay) {
+        db.prepare('UPDATE shop_payments SET amount = ?, date = ?, shop_name = ? WHERE id = ?')
+          .run(updated.amountPaid, updated.date, updated.shopName, existingPay.id);
+      } else {
+        db.prepare(
+          'INSERT INTO shop_payments (id, shop_id, shop_name, amount, discount, date, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        ).run(crypto.randomUUID(), updated.shopId, updated.shopName, updated.amountPaid, null, updated.date, paymentNote, new Date().toISOString());
+      }
+    } else {
+      if (existingPay) {
+        db.prepare('DELETE FROM shop_payments WHERE id = ?').run(existingPay.id);
+      }
     }
   });
 

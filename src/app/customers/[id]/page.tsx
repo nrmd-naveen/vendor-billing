@@ -26,8 +26,15 @@ function CollectionRow({ collection, onSave }: { collection: Collection; onSave:
   return (
     <div className="flex items-center justify-between bg-white rounded-xl border border-gray-100 px-4 py-3">
       <div>
-        <div className="font-medium text-gray-900 text-sm">Amount Collected</div>
-        <div className="text-gray-400 text-xs">
+        <div className="font-medium text-gray-900 text-sm flex items-center gap-2">
+          <span>Amount Collected</span>
+          {collection.note && collection.note.startsWith('Bill #') && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-medium text-[10px] border border-blue-100">
+              {collection.note}
+            </span>
+          )}
+        </div>
+        <div className="text-gray-400 text-xs mt-0.5">
           {new Date(collection.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
         </div>
       </div>
