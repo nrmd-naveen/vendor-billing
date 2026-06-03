@@ -143,7 +143,7 @@ function ShopDropdown({ shops, selected, onSelect }: {
         <div className="flex items-center gap-2 shrink-0">
           {selected && (
             <span className={clsx('text-xs font-semibold', selected.pendingBalance > 0 ? 'text-red-500' : 'text-green-600')}>
-              {selected.pendingBalance > 0 ? `Owe ₹${fmtINR(selected.pendingBalance)}` : selected.pendingBalance < 0 ? `Cr ₹${fmtINR(Math.abs(selected.pendingBalance))}` : 'Settled'}
+              {selected.pendingBalance > 0 ? `I Owe ₹${fmtINR(selected.pendingBalance)}` : selected.pendingBalance < 0 ? `Cr ₹${fmtINR(Math.abs(selected.pendingBalance))}` : 'Settled'}
             </span>
           )}
           <ChevronDown className={clsx('w-4 h-4 text-gray-400 transition-transform', open && 'rotate-180')} />
@@ -161,7 +161,7 @@ function ShopDropdown({ shops, selected, onSelect }: {
 
       {open && (
         <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-          <div className="p-2 border-b border-gray-100">
+          <div className="p-2 border-b border-gray-200">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
               <input
@@ -270,7 +270,7 @@ export default function LedgerPage() {
       <ShopDropdown shops={shops} selected={selectedShop} onSelect={setSelectedShop} />
 
       {/* ── Date range ── */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3">
         <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
           <Filter className="w-3.5 h-3.5 text-orange-500" /> Date Range
         </div>
@@ -307,7 +307,7 @@ export default function LedgerPage() {
 
       {/* ── Content (only when shop is selected) ── */}
       {!selectedShop ? (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm py-16 flex flex-col items-center text-center gap-3">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm py-16 flex flex-col items-center text-center gap-3">
           <div className="w-14 h-14 bg-orange-50 rounded-full flex items-center justify-center">
             <BookOpen className="w-7 h-7 text-orange-300" />
           </div>
@@ -317,7 +317,7 @@ export default function LedgerPage() {
         <>
           {/* Summary cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm">
+            <div className="bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm">
               <div className="text-[11px] text-gray-400 mb-1">Opening Balance</div>
               <div className={clsx('font-bold text-sm', openingBalance > 0 ? 'text-red-600' : openingBalance < 0 ? 'text-green-600' : 'text-gray-400')}>
                 ₹{fmtINR(Math.abs(openingBalance), 2)}{openingBalance < 0 ? ' Cr' : openingBalance > 0 ? ' Dr' : ''}
@@ -333,7 +333,7 @@ export default function LedgerPage() {
               <div className="font-bold text-sm text-green-700">₹{fmtINR(totalPayments, 2)}</div>
               <div className="text-[10px] text-green-300 mt-0.5">{entries.filter(e => e.type === 'payment').length} payments</div>
             </div>
-            <div className={clsx('rounded-xl p-3.5 border', closingBalance > 0 ? 'bg-red-50 border-red-100' : closingBalance < 0 ? 'bg-green-50 border-green-100' : 'bg-gray-50 border-gray-100')}>
+            <div className={clsx('rounded-xl p-3.5 border', closingBalance > 0 ? 'bg-red-50 border-red-100' : closingBalance < 0 ? 'bg-green-50 border-green-100' : 'bg-gray-50 border-gray-200')}>
               <div className={clsx('text-[11px] mb-1', closingBalance > 0 ? 'text-red-500' : closingBalance < 0 ? 'text-green-600' : 'text-gray-400')}>Closing Balance</div>
               <div className={clsx('font-bold text-sm', closingBalance > 0 ? 'text-red-700' : closingBalance < 0 ? 'text-green-700' : 'text-gray-400')}>
                 ₹{fmtINR(Math.abs(closingBalance), 2)}{closingBalance < 0 ? ' Cr' : closingBalance > 0 ? ' Dr' : ''}
@@ -342,8 +342,8 @@ export default function LedgerPage() {
           </div>
 
           {/* Ledger table / preview toggle */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
               <h2 className="font-semibold text-gray-800 text-sm">
                 {selectedShop.name} — {label}
                 {entries.length > 0 && <span className="ml-2 text-xs text-gray-400 font-normal">({entries.length} entries)</span>}
@@ -367,7 +367,7 @@ export default function LedgerPage() {
                 ) : (
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="bg-gray-50 border-b border-gray-100">
+                      <tr className="bg-gray-50 border-b border-gray-200">
                         <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap">Date</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Ref</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Details</th>
@@ -398,7 +398,7 @@ export default function LedgerPage() {
                               {entry.type === 'purchase' && entry.items && entry.items.length > 0 ? (
                                 <table className="w-full text-xs">
                                   <thead>
-                                    <tr className="border-b border-gray-100 text-gray-400">
+                                    <tr className="border-b border-gray-200 text-gray-400">
                                       <th className="text-left pb-1 font-medium">பொருள்</th>
                                       <th className="text-center pb-1 font-medium w-12">மூடை</th>
                                       <th className="text-right pb-1 font-medium w-16">எடை கி</th>

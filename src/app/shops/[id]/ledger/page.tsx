@@ -189,7 +189,7 @@ export default function ShopLedgerPage() {
       </div>
 
       {/* Date range filter */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-3">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
           <Filter className="w-4 h-4 text-orange-500" /> Date Range
         </div>
@@ -237,7 +237,7 @@ export default function ShopLedgerPage() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="text-xs text-gray-400 mb-1">Opening Balance</div>
           <div className={clsx('font-bold text-sm', openingBalance > 0 ? 'text-red-600' : openingBalance < 0 ? 'text-green-600' : 'text-gray-500')}>
             ₹{fmtINR(Math.abs(openingBalance), 2)}
@@ -258,7 +258,7 @@ export default function ShopLedgerPage() {
             {entries.filter(e => e.type === 'payment').length} payments
           </div>
         </div>
-        <div className={clsx('rounded-xl p-4 border', closingBalance > 0 ? 'bg-red-50 border-red-100' : closingBalance < 0 ? 'bg-green-50 border-green-100' : 'bg-gray-50 border-gray-100')}>
+        <div className={clsx('rounded-xl p-4 border', closingBalance > 0 ? 'bg-red-50 border-red-100' : closingBalance < 0 ? 'bg-green-50 border-green-100' : 'bg-gray-50 border-gray-200')}>
           <div className={clsx('text-xs mb-1', closingBalance > 0 ? 'text-red-500' : closingBalance < 0 ? 'text-green-600' : 'text-gray-400')}>
             Closing Balance
           </div>
@@ -270,8 +270,8 @@ export default function ShopLedgerPage() {
       </div>
 
       {/* Ledger table preview */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
           <h2 className="font-semibold text-gray-900 text-sm">
             Transaction Ledger — {label}
           </h2>
@@ -291,7 +291,7 @@ export default function ShopLedgerPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
+                <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap">Date</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Ref</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Description</th>
@@ -326,7 +326,7 @@ export default function ShopLedgerPage() {
                         {entry.type === 'purchase' && entry.items && entry.items.length > 0 ? (
                           <table className="w-full text-xs">
                             <thead>
-                              <tr className="border-b border-gray-100 text-gray-400">
+                              <tr className="border-b border-gray-200 text-gray-400">
                                 <th className="text-left pb-1 font-medium">பொருள்</th>
                                 <th className="text-center pb-1 font-medium">மூடை</th>
                                 <th className="text-right pb-1 font-medium">எடை கி</th>

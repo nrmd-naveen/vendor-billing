@@ -149,7 +149,14 @@ export function useBills() {
     return updated;
   }, []);
 
-  return { bills, addBill, updateBill: updateBillFn, deleteBill, getBill, getBillsByCustomer, loaded };
+  const refresh = useCallback(() => {
+    fetch('/api/bills')
+      .then((r) => r.json())
+      .then((data) => setBills(data))
+      .catch(() => {});
+  }, []);
+
+  return { bills, addBill, updateBill: updateBillFn, deleteBill, getBill, getBillsByCustomer, refresh, loaded };
 }
 
 // ── Shops ─────────────────────────────────────────────────────────────────────

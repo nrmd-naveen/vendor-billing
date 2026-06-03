@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Banknote, Search, X, IndianRupee, Calendar, TrendingUp, Store } from 'lucide-react';
+import { Banknote, Search, X, IndianRupee, Calendar, TrendingUp, Store, Check, Pencil, Trash2 } from 'lucide-react';
 import { ShopPayment } from '@/lib/types';
 import clsx from 'clsx';
 import { fmtINR } from '@/lib/format';
+import { useShops } from '@/lib/storage';
 
 function getLocalDate() {
   const d = new Date();
@@ -18,13 +19,116 @@ function formatDate(dateStr: string, today: string) {
   return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+function EditablePaymentAmount({
+  payment,
+  onSave,
+  onDelete
+}: {
+  payment: ShopPayment;
+  onSave: (id: string, amount: number, discount: number) => void;
+  onDelete: (id: string, amount: number, discount: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [amountVal, setAmountVal] = useState(String(payment.amount));
+  const [discountVal, setDiscountVal] = useState(String(payment.discount || 0));
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  const commit = () => {
+    const amt = parseFloat(amountVal);
+    const disc = parseFloat(discountVal) || 0;
+    if (amt > 0 && (amt !== payment.amount || disc !== (payment.discount || 0))) {
+      onSave(payment.id, amt, disc);
+    } else {
+      setAmountVal(String(payment.amount));
+      setDiscountVal(String(payment.discount || 0));
+    }
+    setEditing(false);
+  };
+
+  const rollback = () => {
+    setAmountVal(String(payment.amount));
+    setDiscountVal(String(payment.discount || 0));
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1.5" onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
+        <div className="flex flex-col gap-1 items-end">
+          <div className="flex items-center gap-1">
+            <span className="text-orange-700"><IndianRupee className="w-3.5 h-3.5" /></span>
+            <input
+              ref={inputRef}
+              type="number"
+              min="1"
+              step="1"
+              value={amountVal}
+              onChange={e => setAmountVal(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') rollback(); }}
+              className="w-24 border border-orange-400 rounded-lg px-2 py-0.5 text-sm font-bold text-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-gray-500 font-medium">Disc:</span>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={discountVal}
+              onChange={e => setDiscountVal(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') rollback(); }}
+              className="w-20 border border-green-300 rounded-lg px-1.5 py-0.5 text-xs font-semibold text-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 bg-white"
+            />
+          </div>
+        </div>
+        <button type="button" onMouseDown={e => { e.preventDefault(); commit(); }} className="text-green-600 hover:text-green-800 p-1">
+          <Check className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2" onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
+      <div className="text-right mr-1">
+        <span className="font-bold text-orange-700 flex items-center gap-0.5 text-base justify-end">
+          <IndianRupee className="w-4 h-4" />{fmtINR(payment.amount)}
+        </span>
+        {payment.discount && payment.discount > 0 ? (
+          <span className="text-xs text-green-600 block">+₹{fmtINR(payment.discount)} disc.</span>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className="p-2 bg-orange-50 text-orange-700 hover:bg-orange-100 rounded-lg transition-colors border border-orange-200"
+      >
+        <Pencil className="w-3.5 h-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => onDelete(payment.id, payment.amount, payment.discount || 0)}
+        className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-200"
+      >
+        <Trash2 className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
 export default function PurchasePaymentsPage() {
+  const { shops, updateShop, loaded: shopsLoaded } = useShops();
   const [payments, setPayments] = useState<ShopPayment[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [search, setSearch] = useState('');
   const [filterDate, setFilterDate] = useState('');
   const [view, setView] = useState<'list' | 'report'>('list');
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; amount: number; discount: number } | null>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -35,13 +139,66 @@ export default function PurchasePaymentsPage() {
       .catch(() => setLoaded(true));
   }, []);
 
-  if (!mounted || !loaded) {
+  if (!mounted || !loaded || !shopsLoaded) {
     return (
       <div className="p-6 lg:p-8 flex items-center justify-center min-h-64">
         <div className="text-gray-400 animate-pulse">Loading...</div>
       </div>
     );
   }
+
+  const handlePaymentSave = async (id: string, amount: number, discount: number) => {
+    const pay = payments.find(p => p.id === id);
+    if (!pay) return;
+
+    const res = await fetch(`/api/shop-payments/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, discount }),
+    });
+
+    if (res.ok) {
+      const updated: ShopPayment = await res.json();
+      setPayments(prev => prev.map(p => p.id === id ? updated : p));
+
+      const shop = shops.find(s => s.id === pay.shopId);
+      if (shop) {
+        const oldTotal = pay.amount + (pay.discount || 0);
+        const newTotal = amount + discount;
+        const diff = newTotal - oldTotal;
+        updateShop(pay.shopId, { pendingBalance: shop.pendingBalance - diff });
+      }
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      alert(errData.error || 'Failed to update payment.');
+      window.location.reload();
+    }
+  };
+
+  const handlePaymentDelete = (id: string, amount: number, discount: number) => {
+    setDeleteConfirm({ id, amount, discount });
+  };
+
+  const executePaymentDelete = async (id: string, amount: number, discount: number) => {
+    const pay = payments.find(p => p.id === id);
+    if (!pay) return;
+
+    const res = await fetch(`/api/shop-payments/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (res.ok) {
+      setPayments(prev => prev.filter(p => p.id !== id));
+      const shop = shops.find(s => s.id === pay.shopId);
+      if (shop) {
+        const totalPaid = amount + discount;
+        updateShop(pay.shopId, { pendingBalance: shop.pendingBalance + totalPaid });
+      }
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      alert(errData.error || 'Failed to delete payment.');
+    }
+  };
 
   const today = getLocalDate();
   const thisMonth = today.slice(0, 7);
@@ -87,7 +244,7 @@ export default function PurchasePaymentsPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center">
               <Banknote className="w-4 h-4 text-orange-600" />
@@ -98,7 +255,7 @@ export default function PurchasePaymentsPage() {
             <IndianRupee className="w-4 h-4" />{fmtINR(totalToday)}
           </div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
               <Calendar className="w-4 h-4 text-blue-600" />
@@ -109,7 +266,7 @@ export default function PurchasePaymentsPage() {
             <IndianRupee className="w-4 h-4" />{fmtINR(totalMonth)}
           </div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center">
               <TrendingUp className="w-4 h-4 text-purple-600" />
@@ -201,7 +358,7 @@ export default function PurchasePaymentsPage() {
                     <Link
                       key={p.id}
                       href={`/shops/${p.shopId}`}
-                      className="flex items-center justify-between bg-white rounded-xl border border-gray-100 px-4 py-3.5 hover:shadow-sm hover:border-orange-200 transition-all"
+                      className="flex items-center justify-between bg-white rounded-xl border border-gray-200 px-4 py-3.5 hover:shadow-sm hover:border-orange-200 transition-all"
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-11 h-11 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
@@ -217,14 +374,7 @@ export default function PurchasePaymentsPage() {
                           )}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <span className="font-bold text-orange-700 flex items-center gap-0.5 text-base justify-end">
-                          <IndianRupee className="w-4 h-4" />{fmtINR(p.amount)}
-                        </span>
-                        {p.discount && p.discount > 0 && (
-                          <span className="text-xs text-green-600">+₹{fmtINR(p.discount)} disc.</span>
-                        )}
-                      </div>
+                      <EditablePaymentAmount payment={p} onSave={handlePaymentSave} onDelete={handlePaymentDelete} />
                     </Link>
                   ))}
                 </div>
@@ -242,9 +392,9 @@ export default function PurchasePaymentsPage() {
               By Shop
               {(search || filterDate) && <span className="text-xs text-gray-400 font-normal">(filtered)</span>}
             </h2>
-            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-100">
+                <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="text-left px-4 py-3 font-semibold text-gray-600">Shop</th>
                     <th className="text-center px-4 py-3 font-semibold text-gray-600">Times</th>
@@ -286,9 +436,9 @@ export default function PurchasePaymentsPage() {
               <Calendar className="w-4 h-4" />
               By Date
             </h2>
-            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-100">
+                <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="text-left px-4 py-3 font-semibold text-gray-600">Date</th>
                     <th className="text-center px-4 py-3 font-semibold text-gray-600">Payments</th>
@@ -315,6 +465,22 @@ export default function PurchasePaymentsPage() {
                   })}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <h2 className="font-bold text-gray-900 text-lg">Delete payment?</h2>
+            <p className="text-sm text-gray-500">Are you sure you want to delete this payment of ₹{fmtINR(deleteConfirm.amount, 2)}?</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteConfirm(null)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl font-medium hover:bg-gray-50 transition-colors text-sm">Cancel</button>
+              <button onClick={() => {
+                const { id, amount, discount } = deleteConfirm;
+                setDeleteConfirm(null);
+                executePaymentDelete(id, amount, discount);
+              }} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-medium transition-colors text-sm">Delete</button>
             </div>
           </div>
         </div>

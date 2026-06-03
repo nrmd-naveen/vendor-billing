@@ -100,11 +100,11 @@ export default function FarmersPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-2"><Wheat className="w-5 h-5 text-yellow-500" /><span className="text-gray-500 text-sm">Total Farmers</span></div>
           <div className="text-2xl font-bold text-gray-900">{farmers.length}</div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-2"><IndianRupee className="w-5 h-5 text-red-500" /><span className="text-gray-500 text-sm">Total I Owe</span></div>
           <div className="text-2xl font-bold text-red-600">₹{fmtINR(totalOwed)}</div>
           <div className="text-xs text-gray-400 mt-1">Pending to pay farmers</div>
@@ -126,7 +126,7 @@ export default function FarmersPage() {
       )}
 
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-xl p-10 text-center border border-gray-100 shadow-sm">
+        <div className="bg-white rounded-xl p-10 text-center border border-gray-200 shadow-sm">
           <Wheat className="w-10 h-10 mx-auto mb-3 text-gray-300" />
           <p className="text-gray-500">No farmers found</p>
           <button onClick={() => setShowForm(true)} className="mt-3 text-yellow-600 text-sm hover:underline">Add first farmer</button>
@@ -134,7 +134,7 @@ export default function FarmersPage() {
       ) : (
         <div className="grid gap-3">
           {filtered.map((farmer) => (
-            <div key={farmer.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center justify-between gap-3">
+            <div key={farmer.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex items-center justify-between gap-3">
               <Link href={`/farmers/${farmer.id}`} className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center shrink-0">
                   <span className="text-yellow-700 font-bold">{farmer.name.charAt(0)}</span>
@@ -153,7 +153,7 @@ export default function FarmersPage() {
                   <div className={clsx('font-bold text-sm flex items-center gap-0.5', farmer.pendingBalance > 0 ? 'text-red-600' : 'text-green-600')}>
                     <IndianRupee className="w-3.5 h-3.5" />{fmtINR(Math.abs(farmer.pendingBalance))}
                   </div>
-                  <div className="text-xs text-gray-400">{farmer.pendingBalance > 0 ? 'I owe' : farmer.pendingBalance < 0 ? 'They owe' : 'Settled'}</div>
+                  <div className="text-xs text-gray-400">{farmer.pendingBalance > 0 ? 'I Owe' : farmer.pendingBalance < 0 ? 'Cr' : 'Settled'}</div>
                 </div>
                 {farmer.pendingBalance > 0 && (
                   <button onClick={() => { setPayTarget(farmer); setPayAmount(''); setPayNote(''); }}

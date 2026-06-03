@@ -116,14 +116,14 @@ export default function ShopsPage() {
 
       {/* Summary */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-2">
             <Store className="w-5 h-5 text-orange-500" />
             <span className="text-gray-500 text-sm">Total Shops</span>
           </div>
           <div className="text-2xl font-bold text-gray-900">{shops.length}</div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-2">
             <IndianRupee className="w-5 h-5 text-red-500" />
             <span className="text-gray-500 text-sm">Total I Owe</span>
@@ -152,7 +152,7 @@ export default function ShopsPage() {
 
       {/* Shop list */}
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-xl p-10 text-center border border-gray-100 shadow-sm">
+        <div className="bg-white rounded-xl p-10 text-center border border-gray-200 shadow-sm">
           <Store className="w-10 h-10 mx-auto mb-3 text-gray-300" />
           <p className="text-gray-500">No shops found</p>
           <button onClick={() => setShowForm(true)} className="mt-3 text-orange-600 text-sm hover:underline">Add first shop</button>
@@ -160,7 +160,7 @@ export default function ShopsPage() {
       ) : (
         <div className="grid gap-3">
           {filtered.map((shop) => (
-            <div key={shop.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center justify-between gap-3">
+            <div key={shop.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex items-center justify-between gap-3">
               <Link href={`/shops/${shop.id}`} className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
                   <span className="text-orange-700 font-bold">{shop.name.charAt(0)}</span>
@@ -180,7 +180,7 @@ export default function ShopsPage() {
                   <div className={clsx('font-bold text-sm flex items-center gap-0.5', shop.pendingBalance > 0 ? 'text-red-600' : 'text-green-600')}>
                     <IndianRupee className="w-3.5 h-3.5" />{fmtINR(Math.abs(shop.pendingBalance))}
                   </div>
-                  <div className="text-xs text-gray-400">{shop.pendingBalance > 0 ? 'I owe' : shop.pendingBalance < 0 ? 'They owe' : 'Settled'}</div>
+                  <div className="text-xs text-gray-400">{shop.pendingBalance > 0 ? 'I Owe' : shop.pendingBalance < 0 ? 'Cr' : 'Settled'}</div>
                 </div>
                 {shop.pendingBalance > 0 && (
                   <button
@@ -193,12 +193,6 @@ export default function ShopsPage() {
                 <Link href={`/shops/${shop.id}`} className="text-gray-300 hover:text-orange-500 transition-colors">
                   <ChevronRight className="w-4 h-4" />
                 </Link>
-                <button
-                  onClick={() => setDeleteConfirm(shop.id)}
-                  className="text-gray-300 hover:text-red-500 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
               </div>
             </div>
           ))}

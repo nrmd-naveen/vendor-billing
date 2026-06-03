@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Banknote, Search, X, IndianRupee, Calendar, TrendingUp, Users, Check, Pencil } from 'lucide-react';
+import { Banknote, Search, X, IndianRupee, Calendar, TrendingUp, Users, Check, Pencil, Trash2 } from 'lucide-react';
 import { Collection } from '@/lib/types';
 import clsx from 'clsx';
 import { fmtINR } from '@/lib/format';
+import { useCustomers } from '@/lib/storage';
 
 function getLocalDate() {
   const d = new Date();
@@ -18,7 +19,7 @@ function formatDate(dateStr: string, today: string) {
   return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-function EditableAmount({ collection, onSave }: { collection: Collection; onSave: (id: string, amount: number) => void }) {
+function EditableAmount({ collection, onSave, onDelete }: { collection: Collection; onSave: (id: string, amount: number) => void; onDelete: (id: string, amount: number) => void }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(collection.amount));
   const inputRef = useRef<HTMLInputElement>(null);
@@ -36,7 +37,7 @@ function EditableAmount({ collection, onSave }: { collection: Collection; onSave
 
   if (editing) {
     return (
-      <div className="flex items-center gap-1" onClick={e => e.preventDefault()}>
+      <div className="flex items-center gap-1" onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
         <span className="text-green-700"><IndianRupee className="w-4 h-4" /></span>
         <input
           ref={inputRef}
@@ -57,28 +58,37 @@ function EditableAmount({ collection, onSave }: { collection: Collection; onSave
   }
 
   return (
-    <div className="flex items-center gap-1.5 group">
-      <span className="font-bold text-green-700 flex items-center gap-0.5 text-base">
+    <div className="flex items-center gap-2" onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
+      <span className="font-bold text-green-700 flex items-center gap-0.5 text-base mr-2">
         <IndianRupee className="w-4 h-4" />{fmtINR(collection.amount)}
       </span>
       <button
         type="button"
-        onClick={e => { e.preventDefault(); setEditing(true); }}
-        className="p-3 ml-4 bg-green-200 rounded-lg text-gray-400 hover:text-green-600 transition-opacity"
+        onClick={() => setEditing(true)}
+        className="p-2 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg transition-colors border border-green-200"
       >
         <Pencil className="w-3.5 h-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => onDelete(collection.id, collection.amount)}
+        className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-200"
+      >
+        <Trash2 className="w-3.5 h-3.5" />
       </button>
     </div>
   );
 }
 
 export default function CollectionsPage() {
+  const { customers, updateCustomer, loaded: customersLoaded } = useCustomers();
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [search, setSearch] = useState('');
   const [filterDate, setFilterDate] = useState('');
   const [view, setView] = useState<'list' | 'report'>('list');
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; amount: number } | null>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -90,6 +100,15 @@ export default function CollectionsPage() {
   }, []);
 
   const handleAmountSave = async (id: string, amount: number) => {
+    const coll = collections.find(c => c.id === id);
+    if (!coll) return;
+    const cust = customers.find(c => c.id === coll.customerId);
+    const diff = amount - coll.amount;
+    if (cust && diff > cust.pendingBalance) {
+      alert(`Cannot increase collection amount by ₹${fmtINR(diff, 2)} as it exceeds the customer's outstanding balance of ₹${fmtINR(cust.pendingBalance, 2)}.`);
+      return;
+    }
+
     const res = await fetch(`/api/collections/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -98,10 +117,39 @@ export default function CollectionsPage() {
     if (res.ok) {
       const updated: Collection = await res.json();
       setCollections(prev => prev.map(c => c.id === id ? updated : c));
+      if (cust) {
+        updateCustomer(coll.customerId, { pendingBalance: cust.pendingBalance - diff });
+      }
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      alert(errData.error || 'Failed to update collection amount.');
+      window.location.reload();
     }
   };
 
-  if (!mounted || !loaded) {
+  const handleCollectionDelete = (id: string, amount: number) => {
+    setDeleteConfirm({ id, amount });
+  };
+
+  const executeCollectionDelete = async (id: string, amount: number) => {
+    const coll = collections.find(c => c.id === id);
+    if (!coll) return;
+    const res = await fetch(`/api/collections/${id}`, {
+      method: 'DELETE',
+    });
+    if (res.ok) {
+      setCollections(prev => prev.filter(c => c.id !== id));
+      const cust = customers.find(c => c.id === coll.customerId);
+      if (cust) {
+        updateCustomer(coll.customerId, { pendingBalance: cust.pendingBalance + amount });
+      }
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      alert(errData.error || 'Failed to delete collection.');
+    }
+  };
+
+  if (!mounted || !loaded || !customersLoaded) {
     return (
       <div className="p-6 lg:p-8 flex items-center justify-center min-h-64">
         <div className="text-gray-400 animate-pulse">Loading...</div>
@@ -157,7 +205,7 @@ export default function CollectionsPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center">
               <Banknote className="w-4 h-4 text-green-600" />
@@ -168,7 +216,7 @@ export default function CollectionsPage() {
             <IndianRupee className="w-4 h-4" />{fmtINR(totalToday)}
           </div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
               <Calendar className="w-4 h-4 text-blue-600" />
@@ -179,7 +227,7 @@ export default function CollectionsPage() {
             <IndianRupee className="w-4 h-4" />{fmtINR(totalMonth)}
           </div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center">
               <TrendingUp className="w-4 h-4 text-purple-600" />
@@ -271,7 +319,7 @@ export default function CollectionsPage() {
                     <Link
                       key={c.id}
                       href={`/customers/${c.customerId}`}
-                      className="flex items-center justify-between bg-white rounded-xl border border-gray-100 px-4 py-3.5 hover:shadow-sm hover:border-green-200 transition-all"
+                      className="flex items-center justify-between bg-white rounded-xl border border-gray-200 px-4 py-3.5 hover:shadow-sm hover:border-green-200 transition-all"
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-11 h-11 rounded-full bg-green-100 flex items-center justify-center shrink-0">
@@ -289,7 +337,7 @@ export default function CollectionsPage() {
                           </div>
                         </div>
                       </div>
-                      <EditableAmount collection={c} onSave={handleAmountSave} />
+                      <EditableAmount collection={c} onSave={handleAmountSave} onDelete={handleCollectionDelete} />
                     </Link>
                   ))}
                 </div>
@@ -307,9 +355,9 @@ export default function CollectionsPage() {
               By Customer
               {(search || filterDate) && <span className="text-xs text-gray-400 font-normal">(filtered)</span>}
             </h2>
-            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-100">
+                <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="text-left px-4 py-3 font-semibold text-gray-600">Customer</th>
                     <th className="text-center px-4 py-3 font-semibold text-gray-600">Times</th>
@@ -351,9 +399,9 @@ export default function CollectionsPage() {
               <Calendar className="w-4 h-4" />
               By Date
             </h2>
-            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-100">
+                <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="text-left px-4 py-3 font-semibold text-gray-600">Date</th>
                     <th className="text-center px-4 py-3 font-semibold text-gray-600">Collections</th>
@@ -380,6 +428,23 @@ export default function CollectionsPage() {
                   })}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <h2 className="font-bold text-gray-900 text-lg">Delete collection?</h2>
+            <p className="text-sm text-gray-500">Are you sure you want to delete this collection of ₹{fmtINR(deleteConfirm.amount, 2)}?</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteConfirm(null)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl font-medium hover:bg-gray-50 transition-colors text-sm">Cancel</button>
+              <button onClick={() => {
+                const { id, amount } = deleteConfirm;
+                setDeleteConfirm(null);
+                executeCollectionDelete(id, amount);
+              }} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-medium transition-colors text-sm">Delete</button>
             </div>
           </div>
         </div>

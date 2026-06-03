@@ -6,7 +6,7 @@ import { CompanySettings } from '@/lib/types';
 import {
   Save, Upload, X, Settings as SettingsIcon, Building2,
   Download, DatabaseBackup, AlertTriangle, RotateCcw,
-  ChevronDown, ChevronUp, Clock, HardDrive,
+  ChevronDown, ChevronUp, Clock, HardDrive, CheckCircle2,
 } from 'lucide-react';
 import type { DbStats } from '@/lib/db';
 
@@ -230,6 +230,44 @@ export default function SettingsPage() {
   const [revertTarget, setRevertTarget] = useState<BackupInfo | null>(null);
   const [reverting, setReverting] = useState(false);
 
+  const [lastDbBackupTime, setLastDbBackupTime] = useState<number | null>(null);
+
+  useEffect(() => {
+    const val = localStorage.getItem('lastDbBackupTime');
+    if (val) {
+      setLastDbBackupTime(parseInt(val, 10));
+    }
+  }, []);
+
+  const getBackupStatusText = () => {
+    if (lastDbBackupTime === null) {
+      return {
+        type: 'danger',
+        text: 'Database backup is overdue (never backed up)',
+      };
+    }
+    const diffMs = Date.now() - lastDbBackupTime;
+    const daysSinceBackup = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+    const daysLeft = 7 - daysSinceBackup;
+    if (daysLeft > 0) {
+      return {
+        type: 'success',
+        text: `Backup up to date. Next backup due in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}.`,
+      };
+    } else if (daysLeft === 0) {
+      return {
+        type: 'warning',
+        text: 'Backup is due today!',
+      };
+    } else {
+      const overdueDays = Math.abs(daysLeft);
+      return {
+        type: 'danger',
+        text: `Backup is overdue by ${overdueDays} day${overdueDays !== 1 ? 's' : ''}!`,
+      };
+    }
+  };
+
   const loadBackups = useCallback(async () => {
     try {
       const res = await fetch('/api/db/backups');
@@ -391,7 +429,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Company info */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-4">
         <h2 className="font-semibold text-gray-900 flex items-center gap-2">
           <Building2 className="w-4 h-4" /> Company Details
         </h2>
@@ -403,7 +441,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Contacts */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-4">
         <h2 className="font-semibold text-gray-900">Contact Persons</h2>
         <div className="grid sm:grid-cols-2 gap-4">
           {field('Contact 1 Name', 'contact1Name', 'P.ரவிச்சந்திரன்')}
@@ -414,7 +452,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Logos */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-5">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-5">
         <h2 className="font-semibold text-gray-900">Bill Logo Images</h2>
         <div className="grid sm:grid-cols-2 gap-6">
           <ImageUpload label="Logo Left (deity / symbol)" value={form.logoLeft} onChange={(v) => set('logoLeft', v)} />
@@ -423,7 +461,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Bill preview */}
-      <div className="bg-gray-50 rounded-xl border border-gray-100 p-4">
+      <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
         <p className="text-xs text-gray-500 mb-3 font-medium uppercase tracking-wide">Bill Header Preview</p>
         <div className="bg-white rounded-lg border border-gray-200 p-3 text-center" style={{ fontFamily: "'Noto Sans Tamil', Arial, sans-serif" }}>
           {form.tagline && <div className="text-[11px] text-gray-500 mb-1">{form.tagline}</div>}
@@ -444,7 +482,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Billing Preferences */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-4">
         <h2 className="font-semibold text-gray-900 flex items-center gap-2">
           <SettingsIcon className="w-4 h-4" /> Billing Preferences
         </h2>
@@ -463,7 +501,7 @@ export default function SettingsPage() {
       </div>
 
       {/* ── Database Backup ── */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-4">
         <h2 className="font-semibold text-gray-900 flex items-center gap-2">
           <DatabaseBackup className="w-4 h-4" /> Database Backup &amp; Restore
         </h2>
@@ -471,11 +509,45 @@ export default function SettingsPage() {
           Download your database for safekeeping, or upload a previous backup to restore it.
         </p>
 
+        {/* Backup Status Badge */}
+        <div className="pt-1">
+          {(() => {
+            const status = getBackupStatusText();
+            if (status.type === 'success') {
+              return (
+                <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-lg text-xs md:text-sm font-medium inline-flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+                  <span>{status.text}</span>
+                </div>
+              );
+            }
+            if (status.type === 'warning') {
+              return (
+                <div className="bg-amber-50 border border-amber-200 text-amber-700 px-3 py-2 rounded-lg text-xs md:text-sm font-medium inline-flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 animate-pulse" />
+                  <span>{status.text}</span>
+                </div>
+              );
+            }
+            return (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-xs md:text-sm font-medium inline-flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 animate-pulse" />
+                <span>{status.text}</span>
+              </div>
+            );
+          })()}
+        </div>
+
         {/* Actions */}
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={() => { window.location.href = '/api/db'; }}
+            onClick={() => {
+              const now = Date.now();
+              localStorage.setItem('lastDbBackupTime', now.toString());
+              setLastDbBackupTime(now);
+              window.location.href = '/api/db';
+            }}
             className="flex items-center gap-2 border border-green-200 text-green-700 bg-green-50 hover:bg-green-100 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
           >
             <Download className="w-4 h-4" />
@@ -532,7 +604,7 @@ export default function SettingsPage() {
 
         {/* Automatic backups list */}
         {backups.length > 0 && (
-          <div className="border border-gray-100 rounded-xl overflow-hidden">
+          <div className="border border-gray-200 rounded-xl overflow-hidden">
             <button
               type="button"
               onClick={() => setShowBackups(v => !v)}

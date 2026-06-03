@@ -23,6 +23,7 @@ export default function ShopDetailPage() {
   const [payDiscount, setPayDiscount] = useState('');
   const [payNote, setPayNote] = useState('');
   const [payDone, setPayDone] = useState(false);
+  const [payError, setPayError] = useState('');
 
   const payAmountRef = useRef<HTMLInputElement>(null);
   const payDiscountRef = useRef<HTMLInputElement>(null);
@@ -69,6 +70,12 @@ export default function ShopDetailPage() {
     const amount = parseFloat(payAmount);
     if (!amount || amount <= 0) return;
     const discount = parseFloat(payDiscount) || 0;
+    const total = amount + discount;
+    if (total > shop.pendingBalance) {
+      setPayError(`Payment + Discount (₹${fmtINR(total, 2)}) cannot exceed the pending balance (₹${fmtINR(shop.pendingBalance, 2)}).`);
+      return;
+    }
+    setPayError('');
     const d = new Date();
     const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     await addPayment({ shopId: id, shopName: shop.name, amount, discount: discount || undefined, date: today, note: payNote });
@@ -132,29 +139,31 @@ export default function ShopDetailPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="text-gray-500 text-xs mb-1">Total Purchased</div>
           <div className="font-bold text-gray-900">₹{fmtINR(totalPurchased)}</div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="text-gray-500 text-xs mb-1">Purchases</div>
           <div className="font-bold text-gray-900">{shopPurchases.length}</div>
         </div>
-        <div className={clsx('rounded-xl p-4 shadow-sm border', shop.pendingBalance > 0 ? 'bg-red-50 border-red-100' : 'bg-green-50 border-green-100')}>
-          <div className={clsx('text-xs mb-1', shop.pendingBalance > 0 ? 'text-red-600' : 'text-green-600')}>I Owe</div>
-          <div className={clsx('font-bold', shop.pendingBalance > 0 ? 'text-red-700' : 'text-green-700')}>₹{fmtINR(Math.abs(shop.pendingBalance))}</div>
+        <div className={clsx('rounded-xl p-4 shadow-sm border', shop.pendingBalance > 0 ? 'bg-red-50 border-red-100' : shop.pendingBalance < 0 ? 'bg-green-50 border-green-100' : 'bg-gray-50 border-gray-200')}>
+          <div className={clsx('text-xs mb-1', shop.pendingBalance > 0 ? 'text-red-600' : shop.pendingBalance < 0 ? 'text-green-600' : 'text-gray-400')}>
+            {shop.pendingBalance > 0 ? 'I Owe' : shop.pendingBalance < 0 ? 'Cr' : 'Settled'}
+          </div>
+          <div className={clsx('font-bold', shop.pendingBalance > 0 ? 'text-red-700' : shop.pendingBalance < 0 ? 'text-green-700' : 'text-gray-500')}>₹{fmtINR(Math.abs(shop.pendingBalance))}</div>
         </div>
       </div>
 
       {/* Quick pay */}
       {shop.pendingBalance > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-3">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-3">
           <h2 className="font-semibold text-gray-900 flex items-center gap-2"><Banknote className="w-4 h-4 text-green-600" /> Record Payment</h2>
           <div className="flex gap-3 flex-wrap">
             <div className="relative flex-1 min-w-[140px]">
               <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input ref={payAmountRef} type="number" min="0" step="0.01" value={payAmount}
-                onChange={(e) => setPayAmount(e.target.value)}
+                onChange={(e) => { setPayAmount(e.target.value); setPayError(''); }}
                 placeholder="Amount paid"
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); payDiscountRef.current?.focus(); } }}
                 className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
@@ -162,7 +171,7 @@ export default function ShopDetailPage() {
             <div className="relative flex-1 min-w-[130px]">
               <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input ref={payDiscountRef} type="number" min="0" step="0.01" value={payDiscount}
-                onChange={(e) => setPayDiscount(e.target.value)}
+                onChange={(e) => { setPayDiscount(e.target.value); setPayError(''); }}
                 placeholder="Discount"
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); payNoteRef.current?.focus(); } }}
                 className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" />
@@ -181,8 +190,11 @@ export default function ShopDetailPage() {
               Pay
             </button>
           </div>
+          {payError && (
+            <div className="text-red-500 text-xs font-semibold mt-1">{payError}</div>
+          )}
           <div className="flex gap-2">
-            <button onClick={() => setPayAmount(String(shop.pendingBalance))}
+            <button onClick={() => { setPayAmount(String(shop.pendingBalance)); setPayError(''); }}
               className="text-xs border border-green-200 text-green-700 px-3 py-1 rounded-full hover:bg-green-50 transition-colors">
               Pay full ₹{fmtINR(shop.pendingBalance)}
             </button>
@@ -191,8 +203,8 @@ export default function ShopDetailPage() {
       )}
 
       {/* Purchases */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="font-semibold text-gray-900 flex items-center gap-2"><FileText className="w-4 h-4 text-orange-500" /> Purchases</h2>
           <Link href={`/purchases/new?shopId=${id}`} className="text-orange-600 text-sm hover:underline">+ New</Link>
         </div>
@@ -223,8 +235,8 @@ export default function ShopDetailPage() {
 
       {/* Payment history */}
       {payments.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-          <div className="px-5 py-4 border-b border-gray-100">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div className="px-5 py-4 border-b border-gray-200">
             <h2 className="font-semibold text-gray-900 flex items-center gap-2"><Banknote className="w-4 h-4 text-green-600" /> Payment History</h2>
           </div>
           <div className="divide-y divide-gray-50">

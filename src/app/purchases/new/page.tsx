@@ -55,6 +55,8 @@ function NewPurchaseForm() {
   const vegDropdownRef = useRef<HTMLDivElement>(null);
   const shopDropdownRef = useRef<HTMLDivElement>(null);
   const itemsSectionRef = useRef<HTMLDivElement>(null);
+  const paymentSectionRef = useRef<HTMLDivElement>(null);
+  const dateRef = useRef<HTMLInputElement>(null);
 
   const handleItemsFocus = () => {
     if (!itemsSectionRef.current) return;
@@ -63,6 +65,15 @@ function NewPurchaseForm() {
       itemsSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
+
+  const handlePaymentFocus = () => {
+    if (!paymentSectionRef.current) return;
+    const rect = paymentSectionRef.current.getBoundingClientRect();
+    if (rect.top > 10) {
+      paymentSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
 
   useEffect(() => setMounted(true), []);
 
@@ -119,7 +130,7 @@ function NewPurchaseForm() {
     setShopSearch(s.name);
     setShowShopDropdown(false);
     setShopDropdownIdx(0);
-    setTimeout(() => rateRef.current?.focus(), 50);
+    setTimeout(() => dateRef.current?.focus(), 50);
   }, []);
 
   const pickVeg = useCallback((veg: Vegetable) => {
@@ -151,7 +162,7 @@ function NewPurchaseForm() {
       _key: crypto.randomUUID(),
       vegetableId: entryVeg.id, vegetableName: entryVeg.name,
       description: entryDescription.trim() || undefined,
-      emoji: entryVeg.emoji,
+      emoji: String(entryVeg.code),
       pricePerKg: rate, sacks: entrySacks, totalWeight, amount: rate * totalWeight,
     }]);
     setEntryVeg(null); setEntryVegSearch(''); setEntryDescription(''); setEntryRate('');
@@ -165,7 +176,15 @@ function NewPurchaseForm() {
   const handleShopKey = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setShopDropdownIdx(i => Math.min(i + 1, filteredShops.length - 1)); setShowShopDropdown(true); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setShopDropdownIdx(i => Math.max(i - 1, 0)); }
-    else if (e.key === 'Enter') { if (showShopDropdown && filteredShops[shopDropdownIdx]) { e.preventDefault(); pickShop(filteredShops[shopDropdownIdx]); } }
+    else if (e.key === 'Enter') {
+      if (showShopDropdown && filteredShops[shopDropdownIdx]) {
+        e.preventDefault();
+        pickShop(filteredShops[shopDropdownIdx]);
+      } else if (shopId) {
+        e.preventDefault();
+        dateRef.current?.focus();
+      }
+    }
     else if (e.key === 'Escape') setShowShopDropdown(false);
   };
 
@@ -205,7 +224,15 @@ function NewPurchaseForm() {
     const errs: string[] = [];
     if (!shopId) errs.push('Please select a shop.');
     if (items.length === 0) errs.push('Add at least one item.');
-    if (errs.length > 0) { setErrors(errs); return; }
+    const maxAllowedPaid = Math.max(0, totalDue);
+    if (paid > maxAllowedPaid) {
+      errs.push(`Amount paid (₹${fmtINR(paid)}) cannot exceed total due (₹${fmtINR(maxAllowedPaid)}).`);
+    }
+    if (errs.length > 0) {
+      setErrors(errs);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     setErrors([]);
     setSaving(true);
     try {
@@ -261,7 +288,7 @@ function NewPurchaseForm() {
       )}
 
       {/* Shop & Date */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-4">
         <h2 className="font-semibold text-gray-900">1. Shop (கடை)</h2>
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="relative">
@@ -305,6 +332,13 @@ function NewPurchaseForm() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+              ref={dateRef}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  rateRef.current?.focus();
+                }
+              }}
               className="w-full border border-gray-400 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors" />
           </div>
         </div>
@@ -327,7 +361,7 @@ function NewPurchaseForm() {
       <div
         ref={itemsSectionRef}
         onFocus={handleItemsFocus}
-        className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4"
+        className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-4"
       >
         <h2 className="font-semibold text-gray-900">2. Items (பொருட்கள்)</h2>
 
@@ -348,14 +382,14 @@ function NewPurchaseForm() {
                   <tr key={item._key} className="hover:bg-gray-50">
                     <td className="px-3 py-2.5 text-gray-900">
                       <div className="flex items-baseline gap-1.5">
-                        <span className="font-bold">{item.emoji} {item.vegetableName}</span>
+                        <span className="font-extrabold text-gray-900 text-base">{item.vegetableName}</span>
                         {item.description && <span className="text-sm text-gray-500">{item.description}</span>}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 text-right text-gray-600">₹{fmtINR(item.pricePerKg, 2)}</td>
-                    <td className="px-3 py-2.5 text-right text-gray-600">
-                      <div>{item.totalWeight} kg</div>
-                      <div className="text-xs text-gray-400">{item.sacks.length} மூடை ({item.sacks.map(s => s.weight).join(', ')})</div>
+                    <td className="px-3 py-2.5 text-right text-gray-900 font-extrabold text-base">₹{fmtINR(item.pricePerKg, 2)}</td>
+                    <td className="px-3 py-2.5 text-right text-gray-900">
+                      <div className="font-extrabold text-base">{item.totalWeight} kg</div>
+                      <div className="text-xs text-gray-900 font-semibold">{item.sacks.length} மூடை ({item.sacks.map(s => s.weight).join(', ')})</div>
                     </td>
                     <td className="px-3 py-2.5 text-right font-semibold text-orange-700">₹{fmtINR(item.amount, 2)}</td>
                     <td className="px-2 py-2.5 text-right">
@@ -424,10 +458,10 @@ function NewPurchaseForm() {
                   <button key={v.id} type="button" onMouseDown={() => pickVeg(v)}
                     className={clsx('w-full text-left px-4 py-2.5 text-sm border-b border-gray-50 last:border-0 transition-colors flex items-center gap-2',
                       idx === vegDropdownIdx ? 'bg-blue-200 text-green-900 font-bold' : 'hover:bg-gray-50')}>
-                    {v.code && <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded shrink-0">{v.code}</span>}
-                    <span>{v.emoji} {v.name}</span>
-                    {v.englishName && <span className="text-gray-500 text-xs">({v.englishName})</span>}
-                    <span className="ml-auto text-xs shrink-0">₹{fmtINR(v.defaultPrice)}/kg</span>
+                    <div className="w-6 h-6 rounded-full bg-green-50 border border-green-200 flex items-center justify-center font-bold text-green-700 shrink-0 text-xs">
+                      {v.code ?? '?'}
+                    </div>
+                    <span className="font-semibold text-gray-900">{v.name}</span>
                   </button>
                 ))}
               </div>
@@ -468,8 +502,13 @@ function NewPurchaseForm() {
           )}
 
           {entryVeg && entryRate && entrySacks.length > 0 && (
-            <div className="text-xs text-gray-500 px-1 flex items-center gap-1">
-              <span className="text-orange-600 font-medium">{entryVeg.emoji} {entryDescription || entryVeg.name}</span>
+            <div className="text-xs text-gray-500 px-1 flex items-center gap-1.5">
+              <span className="text-orange-600 font-medium flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-green-50 border border-green-200 flex items-center justify-center font-bold text-green-700 text-[10px]">
+                  {entryVeg.code}
+                </span>
+                {entryDescription || entryVeg.name}
+              </span>
               — {entrySacks.length} மூடை ({entrySacksTotal} kg) × ₹{fmtINR(parseFloat(entryRate) || 0, 2)} =
               <span className="font-semibold text-gray-800">₹{fmtINR(entrySacksTotal * parseFloat(entryRate), 2)}</span>
             </div>
@@ -478,7 +517,11 @@ function NewPurchaseForm() {
       </div>
 
       {/* Payment */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+      <div
+        ref={paymentSectionRef}
+        onFocus={handlePaymentFocus}
+        className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-4"
+      >
         <h2 className="font-semibold text-gray-900">3. Payment (கட்டணம்)</h2>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between text-gray-700"><span>Today&apos;s Purchase Total</span><span className="font-semibold">₹{fmtINR(subtotal, 2)}</span></div>

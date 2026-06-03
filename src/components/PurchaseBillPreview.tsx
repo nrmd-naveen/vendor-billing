@@ -60,7 +60,7 @@ export default function PurchaseBillPreview({ purchase, shopPhone, showPrintButt
   return (
     <div className="bg-white">
       {showPrintButton && (
-        <div className="flex justify-end gap-2 p-4 border-b border-gray-100 print:hidden">
+        <div className="flex justify-end gap-2 p-4 border-b border-gray-200 print:hidden">
           <button
             onClick={() => handleDownload('pdf')}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"

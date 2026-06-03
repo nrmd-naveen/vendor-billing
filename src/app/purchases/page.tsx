@@ -94,7 +94,7 @@ export default function PurchasesPage() {
             <Plus className="w-4 h-4" /> New Purchase <ChevronDown className="w-4 h-4" />
           </button>
           {showNewMenu && (
-            <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-100 z-10 overflow-hidden">
+            <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-200 z-10 overflow-hidden">
               <Link
                 href="/purchases/new"
                 onClick={() => setShowNewMenu(false)}
@@ -128,7 +128,7 @@ export default function PurchasesPage() {
 
       {/* Today's summary */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-2">
             <FileText className="w-4 h-4 text-orange-500" />
             <span className="text-gray-500 text-xs">Today&apos;s Purchases</span>
@@ -136,7 +136,7 @@ export default function PurchasesPage() {
           <div className="text-2xl font-bold text-gray-900">{todaysCount}</div>
           <div className="text-xs text-gray-400 mt-1">{todayShop.length} shop · {todayFarmer.length} farmer</div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-2">
             <IndianRupee className="w-4 h-4 text-orange-500" />
             <span className="text-gray-500 text-xs">Today&apos;s Value</span>
@@ -144,7 +144,7 @@ export default function PurchasesPage() {
           <div className="text-2xl font-bold text-orange-700">₹{fmtINR(todaysTotal)}</div>
           <div className="text-xs text-gray-400 mt-1">total purchased</div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-2">
             <ShoppingCart className="w-4 h-4 text-orange-500" />
             <span className="text-gray-500 text-xs">Weight Today</span>
@@ -198,12 +198,12 @@ export default function PurchasesPage() {
 
       {/* List */}
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-xl p-10 text-center border border-gray-100 shadow-sm">
+        <div className="bg-white rounded-xl p-10 text-center border border-gray-200 shadow-sm">
           <ShoppingCart className="w-10 h-10 mx-auto mb-3 text-gray-300" />
           <p className="text-gray-500">No purchases found</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="divide-y divide-gray-50">
             {filtered.map((entry) => {
               if (entry.type === 'shop') {
@@ -228,7 +228,7 @@ export default function PurchasesPage() {
                     </div>
                     <div className="text-right shrink-0">
                       <div className="font-semibold text-gray-900 text-sm">₹{fmtINR(p.subtotal)}</div>
-                      {p.newBalance > 0 && <div className="text-red-500 text-xs">Owe: ₹{fmtINR(p.newBalance)}</div>}
+                      {p.newBalance > 0 && <div className="text-red-500 text-xs">I Owe: ₹{fmtINR(p.newBalance)}</div>}
                       {p.amountPaid > 0 && <div className="text-green-600 text-xs">Paid: ₹{fmtINR(p.amountPaid)}</div>}
                     </div>
                   </Link>
@@ -257,14 +257,14 @@ export default function PurchasesPage() {
                     <div className="text-right shrink-0">
                       <div className="text-xs text-gray-500">Received: ₹{fmtINR(b.subtotal)}</div>
                       <div className="font-semibold text-yellow-700 text-sm">Net: ₹{fmtINR(b.netAmount)}</div>
-                      {b.newBalance > 0 && <div className="text-red-500 text-xs">Owe: ₹{fmtINR(b.newBalance)}</div>}
+                      {b.newBalance > 0 && <div className="text-red-500 text-xs">I Owe: ₹{fmtINR(b.newBalance)}</div>}
                     </div>
                   </Link>
                 );
               }
             })}
           </div>
-          <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex justify-between text-sm text-gray-500">
+          <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 flex justify-between text-sm text-gray-500">
             <span>{filtered.length} purchase{filtered.length !== 1 ? 's' : ''}</span>
             <span className="font-medium text-gray-700">
               Total: ₹{fmtINR(filtered.reduce((s, e) => {

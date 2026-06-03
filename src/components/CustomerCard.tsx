@@ -20,7 +20,7 @@ export default function CustomerCard({ customer, billCount, onCollect, collected
   return (
     <Link
       href={`/customers/${customer.id}`}
-      className="block bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md hover:border-green-200 transition-all"
+      className="block bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-green-200 transition-all"
     >
       <div className="p-4 flex items-center gap-4 relative">
         {selectionMode && (
@@ -35,7 +35,7 @@ export default function CustomerCard({ customer, billCount, onCollect, collected
           </div>
         )}
         <div className={clsx("flex items-center gap-4 flex-1 min-w-0 transition-transform", selectionMode && "translate-x-8")}>
-          <div className="w-12 h-12 rounded-full overflow-hidden bg-green-100 flex items-center justify-center shrink-0 border border-gray-100">
+          <div className="w-12 h-12 rounded-full overflow-hidden bg-green-100 flex items-center justify-center shrink-0 border border-gray-200">
             {customer.photo ? (
               <img src={customer.photo} alt={customer.name} className="w-full h-full object-cover" />
             ) : (

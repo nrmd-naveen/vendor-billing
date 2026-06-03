@@ -6,6 +6,7 @@ import { useBills, usePurchases, useFarmerBills } from '@/lib/storage';
 import {
   IndianRupee, TrendingUp, TrendingDown, PlusCircle, BarChart2,
   ShoppingCart, Wheat, ArrowRight, FileText, CheckCircle2, Clock,
+  AlertTriangle, Download,
 } from 'lucide-react';
 import { Bill, FarmerBill, Purchase } from '@/lib/types';
 import { fmtINR } from '@/lib/format';
@@ -15,8 +16,27 @@ export default function DashboardPage() {
   const { purchases, loaded: purchasesLoaded } = usePurchases();
   const { farmerBills, loaded: farmerBillsLoaded } = useFarmerBills();
   const [mounted, setMounted] = useState(false);
+  const [showBackupReminder, setShowBackupReminder] = useState(false);
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    const lastBackup = localStorage.getItem('lastDbBackupTime');
+    if (!lastBackup) {
+      setShowBackupReminder(true);
+    } else {
+      const diff = Date.now() - parseInt(lastBackup, 10);
+      const sevenDays = 7 * 24 * 60 * 60 * 1000;
+      if (diff > sevenDays) {
+        setShowBackupReminder(true);
+      }
+    }
+  }, []);
+
+  const handleDownloadBackup = () => {
+    localStorage.setItem('lastDbBackupTime', Date.now().toString());
+    setShowBackupReminder(false);
+    window.location.href = '/api/db';
+  };
 
   if (!mounted || !billsLoaded || !purchasesLoaded || !farmerBillsLoaded) {
     return (
@@ -99,9 +119,36 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Backup Reminder Banner */}
+      {showBackupReminder && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-amber-100 rounded-lg text-amber-700 shrink-0">
+              <AlertTriangle className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-amber-900 text-sm md:text-base">Database Backup Reminder</h3>
+              <p className="text-amber-700 text-xs md:text-sm mt-0.5">
+                You haven&apos;t downloaded a database backup recently. Download a copy to safeguard your billing and customer records.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+
+            <button
+              onClick={handleDownloadBackup}
+              className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-colors shadow-sm"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Download Now
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:border-green-200 transition-colors">
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:border-green-200 transition-colors">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
               <TrendingUp className="w-5 h-5 text-green-600" />
@@ -114,7 +161,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:border-orange-200 transition-colors">
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:border-orange-200 transition-colors">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
               <ShoppingCart className="w-5 h-5 text-orange-600" />
@@ -127,7 +174,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className={`bg-white rounded-xl p-5 shadow-sm border transition-colors ${todaysProfit >= 0 ? 'border-gray-100 hover:border-blue-200' : 'border-gray-100 hover:border-red-200'}`}>
+        <div className={`bg-white rounded-xl p-5 shadow-sm border transition-colors ${todaysProfit >= 0 ? 'border-gray-200 hover:border-blue-200' : 'border-gray-200 hover:border-red-200'}`}>
           <div className="flex items-center gap-3 mb-4">
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${todaysProfit >= 0 ? 'bg-blue-50' : 'bg-red-50'}`}>
               <TrendingDown className={`w-5 h-5 ${todaysProfit >= 0 ? 'text-blue-600' : 'text-red-500'}`} />
@@ -179,8 +226,8 @@ export default function DashboardPage() {
       {/* Recent lists */}
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Recent Sales Bills */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 className="font-semibold text-gray-900 flex items-center gap-2">
               <FileText className="w-4 h-4 text-green-600" />
               Recent Sales
@@ -233,8 +280,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Recent Purchases */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 className="font-semibold text-gray-900 flex items-center gap-2">
               <ShoppingCart className="w-4 h-4 text-orange-500" />
               Recent Purchases

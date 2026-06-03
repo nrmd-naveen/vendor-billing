@@ -3,21 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useVegetables } from '@/lib/storage';
 import { Vegetable } from '@/lib/types';
-import { Plus, Pencil, Trash2, Check, X, IndianRupee, Leaf } from 'lucide-react';
-import { fmtINR } from '@/lib/format';
-
-const EMOJI_OPTIONS = [
-  '🍆', '🍅', '🥔', '🧅', '🥕', '🫘', '🥒', '🌿', '🥬', '🥦',
-  '👌', '🍌', '🍠', '🎃', '🫛', '🌽', '🌸', '🌶️', '🧄', '🫑',
-  '🥑', '🌰', '🥝', '🍋', '🍊',
-];
+import { Plus, Pencil, Trash2, Check, X, Leaf } from 'lucide-react';
 
 interface EditState {
   name: string;
-  englishName: string;
   nicknames: string;
-  emoji: string;
-  defaultPrice: string;
   code: string;
 }
 
@@ -25,9 +15,9 @@ export default function VegetablesPage() {
   const { vegetables, addVegetable, updateVegetable, deleteVegetable, loaded } = useVegetables();
   const [mounted, setMounted] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
-  const [addForm, setAddForm] = useState<EditState>({ name: '', englishName: '', nicknames: '', emoji: '🥦', defaultPrice: '', code: '' });
+  const [addForm, setAddForm] = useState<EditState>({ name: '', nicknames: '', code: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<EditState>({ name: '', englishName: '', nicknames: '', emoji: '', defaultPrice: '', code: '' });
+  const [editForm, setEditForm] = useState<EditState>({ name: '', nicknames: '', code: '' });
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => setMounted(true), []);
@@ -41,36 +31,43 @@ export default function VegetablesPage() {
   }
 
   const handleAdd = () => {
-    if (!addForm.name.trim() || !addForm.emoji) return;
+    if (!addForm.name.trim() || !addForm.code.trim()) return;
+    const codeNum = parseInt(addForm.code);
+    if (isNaN(codeNum) || codeNum <= 0) return;
+
     addVegetable({
       name: addForm.name.trim(),
-      englishName: addForm.englishName.trim(),
+      englishName: '',
       nicknames: addForm.nicknames.split(',').map(n => n.trim()).filter(n => n !== '').slice(0, 2),
-      emoji: addForm.emoji,
-      defaultPrice: parseFloat(addForm.defaultPrice) || 0,
-      code: addForm.code ? parseInt(addForm.code) : undefined,
+      emoji: String(codeNum),
+      defaultPrice: 0,
+      code: codeNum,
     });
-    setAddForm({ name: '', englishName: '', nicknames: '', emoji: '🥦', defaultPrice: '', code: '' });
+    setAddForm({ name: '', nicknames: '', code: '' });
     setShowAdd(false);
   };
 
   const startEdit = (v: Vegetable) => {
     setEditingId(v.id);
     setEditForm({
-      name: v.name, englishName: v.englishName || '',
+      name: v.name,
       nicknames: v.nicknames?.join(', ') || '',
-      emoji: v.emoji, defaultPrice: v.defaultPrice.toString(),
       code: v.code ? String(v.code) : '',
     });
   };
 
   const saveEdit = () => {
-    if (!editingId || !editForm.name.trim()) return;
+    if (!editingId || !editForm.name.trim() || !editForm.code.trim()) return;
+    const codeNum = parseInt(editForm.code);
+    if (isNaN(codeNum) || codeNum <= 0) return;
+
     updateVegetable(editingId, {
-      name: editForm.name.trim(), englishName: editForm.englishName.trim(),
+      name: editForm.name.trim(),
+      englishName: '',
       nicknames: editForm.nicknames.split(',').map(n => n.trim()).filter(n => n !== '').slice(0, 2),
-      emoji: editForm.emoji, defaultPrice: parseFloat(editForm.defaultPrice) || 0,
-      code: editForm.code ? parseInt(editForm.code) : undefined,
+      emoji: String(codeNum),
+      defaultPrice: 0,
+      code: codeNum,
     });
     setEditingId(null);
   };
@@ -98,31 +95,7 @@ export default function VegetablesPage() {
       {showAdd && (
         <div className="bg-white rounded-xl shadow-sm border border-green-200 p-5 space-y-4">
           <h3 className="font-semibold text-gray-900">Add New Vegetable</h3>
-          {/* Emoji picker */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Choose Icon</label>
-            <div className="flex flex-wrap gap-2">
-              {EMOJI_OPTIONS.map((em) => (
-                <button
-                  key={em}
-                  type="button"
-                  onClick={() => setAddForm({ ...addForm, emoji: em })}
-                  className={`text-2xl p-1.5 rounded-lg border-2 transition-colors ${
-                    addForm.emoji === em ? 'border-green-500 bg-green-50' : 'border-transparent hover:border-gray-200'
-                  }`}
-                >
-                  {em}
-                </button>
-              ))}
-              <input
-                type="text"
-                placeholder="or type emoji"
-                value={EMOJI_OPTIONS.includes(addForm.emoji) ? '' : addForm.emoji}
-                onChange={(e) => setAddForm({ ...addForm, emoji: e.target.value })}
-                className="border border-gray-400 rounded-lg px-3 py-1.5 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
-              />
-            </div>
-          </div>
+          
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Main Name (Tamil) <span className="text-red-500">*</span></label>
@@ -136,16 +109,14 @@ export default function VegetablesPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">English Name</label>
-              <input
-                type="text"
-                value={addForm.englishName}
-                onChange={(e) => setAddForm({ ...addForm, englishName: e.target.value })}
-                placeholder="e.g. Brinjal"
-                className="w-full border border-gray-400 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Short Code (number) <span className="text-red-500">*</span></label>
+              <input type="number" min="1" value={addForm.code}
+                onChange={(e) => setAddForm({ ...addForm, code: e.target.value })}
+                placeholder="e.g. 1"
+                className="w-full border border-gray-400 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
+              <p className="text-xs text-gray-400 mt-1">Type this number in bill to quickly select</p>
             </div>
-            <div>
+            <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Nicknames (max 2, comma separated)</label>
               <input
                 type="text"
@@ -154,24 +125,6 @@ export default function VegetablesPage() {
                 placeholder="e.g. Eggplant, Katsiri"
                 className="w-full border border-gray-400 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Default Price / kg (₹)</label>
-              <div className="relative">
-                <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input type="number" min="0" step="0.5" value={addForm.defaultPrice}
-                  onChange={(e) => setAddForm({ ...addForm, defaultPrice: e.target.value })}
-                  placeholder="0.00"
-                  className="w-full border border-gray-400 rounded-lg pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Short Code (number)</label>
-              <input type="number" min="1" value={addForm.code}
-                onChange={(e) => setAddForm({ ...addForm, code: e.target.value })}
-                placeholder="e.g. 1"
-                className="w-full border border-gray-400 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
-              <p className="text-xs text-gray-400 mt-1">Type this number in bill to quickly select</p>
             </div>
           </div>
           <div className="flex gap-3">
@@ -225,59 +178,40 @@ export default function VegetablesPage() {
           {vegetables.map((v: Vegetable) => (
             <div
               key={v.id}
-              className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
+              className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
             >
               {editingId === v.id ? (
                 <div className="p-4 space-y-3">
-                  {/* Emoji picker in edit */}
-                  <div className="flex flex-wrap gap-1.5">
-                    {EMOJI_OPTIONS.map((em) => (
-                      <button
-                        key={em}
-                        type="button"
-                        onClick={() => setEditForm({ ...editForm, emoji: em })}
-                        className={`text-xl p-1 rounded-lg border-2 transition-colors ${
-                          editForm.emoji === em ? 'border-green-500 bg-green-50' : 'border-transparent hover:border-gray-200'
-                        }`}
-                      >
-                        {em}
-                      </button>
-                    ))}
-                  </div>
                   <div className="space-y-2">
-                    <input
-                      type="text"
-                      value={editForm.name}
-                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                      placeholder="Tamil Name"
-                      className="w-full border border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
-                    />
-                    <input
-                      type="text"
-                      value={editForm.englishName}
-                      onChange={(e) => setEditForm({ ...editForm, englishName: e.target.value })}
-                      placeholder="English Name"
-                      className="w-full border border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
-                    />
-                    <input
-                      type="text"
-                      value={editForm.nicknames}
-                      onChange={(e) => setEditForm({ ...editForm, nicknames: e.target.value })}
-                      placeholder="Nicknames (comma separated)"
-                      className="w-full border border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
-                    />
+                    <div>
+                      <label className="block text-[10px] font-medium text-gray-400 mb-0.5 ml-1">Tamil Name <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        value={editForm.name}
+                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                        placeholder="Tamil Name"
+                        className="w-full border border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-gray-400 mb-0.5 ml-1">Short Code (number) <span className="text-red-500">*</span></label>
+                      <input type="number" min="1" value={editForm.code}
+                        onChange={(e) => setEditForm({ ...editForm, code: e.target.value })}
+                        placeholder="Code (number)"
+                        className="w-full border border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-gray-400 mb-0.5 ml-1">Nicknames (comma separated)</label>
+                      <input
+                        type="text"
+                        value={editForm.nicknames}
+                        onChange={(e) => setEditForm({ ...editForm, nicknames: e.target.value })}
+                        placeholder="Nicknames (comma separated)"
+                        className="w-full border border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
+                      />
+                    </div>
                   </div>
-                  <div className="relative">
-                    <IndianRupee className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                    <input type="number" min="0" step="0.5" value={editForm.defaultPrice}
-                      onChange={(e) => setEditForm({ ...editForm, defaultPrice: e.target.value })}
-                      className="w-full border border-gray-400 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
-                  </div>
-                  <input type="number" min="1" value={editForm.code}
-                    onChange={(e) => setEditForm({ ...editForm, code: e.target.value })}
-                    placeholder="Code (number)"
-                    className="w-full border border-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors" />
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 pt-1">
                     <button onClick={() => setEditingId(null)} className="flex-1 border border-gray-200 text-gray-600 py-1.5 rounded-lg text-sm hover:bg-gray-50">
                       <X className="w-4 h-4 mx-auto" />
                     </button>
@@ -288,19 +222,16 @@ export default function VegetablesPage() {
                 </div>
               ) : (
                 <div className="p-4 flex items-center gap-3">
-                  <div className="text-3xl w-10 text-center shrink-0">{v.emoji}</div>
+                  <div className="w-10 h-10 rounded-full bg-green-50 border border-green-200 flex items-center justify-center font-bold text-green-700 shrink-0 text-sm">
+                    {v.code ?? '?'}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      {v.code && <span className="text-xs font-mono bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded shrink-0">{v.code}</span>}
                       <span className="font-medium text-gray-900 truncate">{v.name}</span>
                     </div>
-                    {v.englishName && <div className="text-gray-500 text-xs truncate">{v.englishName}</div>}
                     {v.nicknames && v.nicknames.length > 0 && (
                       <div className="text-gray-400 text-[10px] truncate italic">&quot;{v.nicknames.join(', ')}&quot;</div>
                     )}
-                    <div className="text-green-700 text-sm font-semibold flex items-center gap-0.5 mt-0.5">
-                      <IndianRupee className="w-3 h-3" />{fmtINR(v.defaultPrice)}/kg
-                    </div>
                   </div>
                   <div className="flex gap-1 shrink-0">
                     <button

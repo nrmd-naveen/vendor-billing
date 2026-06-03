@@ -46,15 +46,15 @@ export default function FarmerBillsPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-2"><Wheat className="w-4 h-4 text-yellow-500" /><span className="text-gray-500 text-xs">Today&apos;s Bills</span></div>
           <div className="text-2xl font-bold text-gray-900">{todaysBills.length}</div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-2"><IndianRupee className="w-4 h-4 text-yellow-500" /><span className="text-gray-500 text-xs">Received Today</span></div>
           <div className="text-2xl font-bold text-yellow-700">₹{fmtINR(todaysTotal)}</div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-2"><IndianRupee className="w-4 h-4 text-green-500" /><span className="text-gray-500 text-xs">Net Paid Today</span></div>
           <div className="text-2xl font-bold text-green-700">₹{fmtINR(todaysNet)}</div>
         </div>
@@ -76,13 +76,13 @@ export default function FarmerBillsPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-xl p-10 text-center border border-gray-100 shadow-sm">
+        <div className="bg-white rounded-xl p-10 text-center border border-gray-200 shadow-sm">
           <Wheat className="w-10 h-10 mx-auto mb-3 text-gray-300" />
           <p className="text-gray-500">No farmer bills found</p>
           <Link href="/farmer-bills/new" className="mt-3 text-yellow-600 text-sm hover:underline block">Create first farmer bill</Link>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="divide-y divide-gray-50">
             {filtered.map((b: FarmerBill) => (
               <Link key={b.id} href={`/farmer-bills/${b.id}`}
@@ -102,12 +102,12 @@ export default function FarmerBillsPage() {
                 <div className="text-right shrink-0">
                   <div className="text-xs text-gray-500">Received: ₹{fmtINR(b.subtotal)}</div>
                   <div className="font-semibold text-yellow-700 text-sm">Net: ₹{fmtINR(b.netAmount)}</div>
-                  {b.newBalance > 0 && <div className="text-red-500 text-xs">Owe: ₹{fmtINR(b.newBalance)}</div>}
+                  {b.newBalance > 0 && <div className="text-red-500 text-xs">I Owe: ₹{fmtINR(b.newBalance)}</div>}
                 </div>
               </Link>
             ))}
           </div>
-          <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex justify-between text-sm text-gray-500">
+          <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 flex justify-between text-sm text-gray-500">
             <span>{filtered.length} bill{filtered.length !== 1 ? 's' : ''}</span>
             <span className="font-medium text-gray-700">Net: ₹{fmtINR(filtered.reduce((s, b) => s + b.netAmount, 0))}</span>
           </div>

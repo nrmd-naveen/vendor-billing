@@ -182,7 +182,7 @@ export default function CustomerLedgerPage() {
       </div>
 
       {/* Date range filter */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-3">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-3">
         <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
           <Filter className="w-3.5 h-3.5 text-green-500" /> Date Range
         </div>
@@ -221,7 +221,7 @@ export default function CustomerLedgerPage() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm">
+        <div className="bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm">
           <div className="text-[11px] text-gray-400 mb-1">Opening Balance</div>
           <div className={clsx('font-bold text-sm', openingBalance > 0 ? 'text-red-600' : openingBalance < 0 ? 'text-green-600' : 'text-gray-400')}>
             ₹{fmtINR(Math.abs(openingBalance), 2)}{openingBalance < 0 ? ' Cr' : openingBalance > 0 ? ' Dr' : ''}
@@ -237,7 +237,7 @@ export default function CustomerLedgerPage() {
           <div className="font-bold text-sm text-blue-700">₹{fmtINR(totalCollections, 2)}</div>
           <div className="text-[10px] text-blue-300 mt-0.5">{entries.filter(e => e.type === 'payment').length} collections</div>
         </div>
-        <div className={clsx('rounded-xl p-3.5 border', closingBalance > 0 ? 'bg-red-50 border-red-100' : closingBalance < 0 ? 'bg-green-50 border-green-100' : 'bg-gray-50 border-gray-100')}>
+        <div className={clsx('rounded-xl p-3.5 border', closingBalance > 0 ? 'bg-red-50 border-red-100' : closingBalance < 0 ? 'bg-green-50 border-green-100' : 'bg-gray-50 border-gray-200')}>
           <div className={clsx('text-[11px] mb-1', closingBalance > 0 ? 'text-red-500' : closingBalance < 0 ? 'text-green-600' : 'text-gray-400')}>Closing Balance</div>
           <div className={clsx('font-bold text-sm', closingBalance > 0 ? 'text-red-700' : closingBalance < 0 ? 'text-green-700' : 'text-gray-400')}>
             ₹{fmtINR(Math.abs(closingBalance), 2)}{closingBalance < 0 ? ' Cr' : closingBalance > 0 ? ' Dr' : ''}
@@ -246,8 +246,8 @@ export default function CustomerLedgerPage() {
       </div>
 
       {/* Ledger table / preview toggle */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
           <h2 className="font-semibold text-gray-800 text-sm">
             {customer.name} — {label}
             {entries.length > 0 && <span className="ml-2 text-xs text-gray-400 font-normal">({entries.length} entries)</span>}
@@ -270,7 +270,7 @@ export default function CustomerLedgerPage() {
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
+                  <tr className="bg-gray-50 border-b border-gray-200">
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap">Date</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Ref</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Details</th>
@@ -301,7 +301,7 @@ export default function CustomerLedgerPage() {
                           {entry.type === 'purchase' && entry.items && entry.items.length > 0 ? (
                             <table className="w-full text-xs">
                               <thead>
-                                <tr className="border-b border-gray-100 text-gray-400">
+                                <tr className="border-b border-gray-200 text-gray-400">
                                   <th className="text-left pb-1 font-medium">பொருள்</th>
                                   <th className="text-center pb-1 font-medium w-12">மூடை</th>
                                   <th className="text-right pb-1 font-medium w-16">எடை கி</th>

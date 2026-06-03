@@ -20,6 +20,7 @@ export default function FarmerDetailPage() {
   const [payAmount, setPayAmount] = useState('');
   const [payNote, setPayNote] = useState('');
   const [payDone, setPayDone] = useState(false);
+  const [payError, setPayError] = useState('');
 
   const payAmountRef = useRef<HTMLInputElement>(null);
   const payNoteRef = useRef<HTMLInputElement>(null);
@@ -52,6 +53,11 @@ export default function FarmerDetailPage() {
   const handlePay = async () => {
     const amount = parseFloat(payAmount);
     if (!amount || amount <= 0) return;
+    if (amount > farmer.pendingBalance) {
+      setPayError(`Payment (₹${fmtINR(amount, 2)}) cannot exceed the pending balance of ₹${fmtINR(farmer.pendingBalance, 2)}.`);
+      return;
+    }
+    setPayError('');
     const d = new Date();
     const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     await addPayment({ farmerId: id, farmerName: farmer.name, amount, date: today, note: payNote });
@@ -93,27 +99,29 @@ export default function FarmerDetailPage() {
       )}
 
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="text-gray-500 text-xs mb-1">Total Received</div>
           <div className="font-bold text-gray-900">₹{fmtINR(totalReceived)}</div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <div className="text-gray-500 text-xs mb-1">Bills</div>
           <div className="font-bold text-gray-900">{bills.length}</div>
         </div>
-        <div className={clsx('rounded-xl p-4 shadow-sm border', farmer.pendingBalance > 0 ? 'bg-red-50 border-red-100' : 'bg-green-50 border-green-100')}>
-          <div className={clsx('text-xs mb-1', farmer.pendingBalance > 0 ? 'text-red-600' : 'text-green-600')}>I Owe Farmer</div>
-          <div className={clsx('font-bold', farmer.pendingBalance > 0 ? 'text-red-700' : 'text-green-700')}>₹{fmtINR(Math.abs(farmer.pendingBalance))}</div>
+        <div className={clsx('rounded-xl p-4 shadow-sm border', farmer.pendingBalance > 0 ? 'bg-red-50 border-red-100' : farmer.pendingBalance < 0 ? 'bg-green-50 border-green-100' : 'bg-gray-50 border-gray-200')}>
+          <div className={clsx('text-xs mb-1', farmer.pendingBalance > 0 ? 'text-red-600' : farmer.pendingBalance < 0 ? 'text-green-600' : 'text-gray-400')}>
+            {farmer.pendingBalance > 0 ? 'I Owe' : farmer.pendingBalance < 0 ? 'Cr' : 'Settled'}
+          </div>
+          <div className={clsx('font-bold', farmer.pendingBalance > 0 ? 'text-red-700' : farmer.pendingBalance < 0 ? 'text-green-700' : 'text-gray-500')}>₹{fmtINR(Math.abs(farmer.pendingBalance))}</div>
         </div>
       </div>
 
       {farmer.pendingBalance > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-3">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-3">
           <h2 className="font-semibold text-gray-900 flex items-center gap-2"><Banknote className="w-4 h-4 text-green-600" /> Pay Farmer</h2>
           <div className="flex gap-3 flex-wrap">
             <div className="relative flex-1 min-w-[140px]">
               <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input ref={payAmountRef} type="number" min="0" step="0.01" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} placeholder="Amount"
+              <input ref={payAmountRef} type="number" min="0" step="0.01" value={payAmount} onChange={(e) => { setPayAmount(e.target.value); setPayError(''); }} placeholder="Amount"
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); payNoteRef.current?.focus(); } }}
                 className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
             </div>
@@ -123,15 +131,18 @@ export default function FarmerDetailPage() {
             <button onClick={handlePay} disabled={!payAmount || parseFloat(payAmount) <= 0}
               className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg font-medium text-sm">Pay</button>
           </div>
-          <button onClick={() => setPayAmount(String(farmer.pendingBalance))}
+          {payError && (
+            <div className="text-red-500 text-xs font-semibold mt-1">{payError}</div>
+          )}
+          <button onClick={() => { setPayAmount(String(farmer.pendingBalance)); setPayError(''); }}
             className="text-xs border border-green-200 text-green-700 px-3 py-1 rounded-full hover:bg-green-50">
             Pay full ₹{fmtINR(farmer.pendingBalance)}
           </button>
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="font-semibold text-gray-900 flex items-center gap-2"><FileText className="w-4 h-4 text-yellow-500" /> Bills</h2>
           <Link href={`/farmer-bills/new?farmerId=${id}`} className="text-yellow-600 text-sm hover:underline">+ New</Link>
         </div>
@@ -153,7 +164,7 @@ export default function FarmerDetailPage() {
                 <div className="text-right">
                   <div className="text-xs text-gray-500">₹{fmtINR(b.subtotal)} received</div>
                   <div className="font-semibold text-yellow-700 text-sm">₹{fmtINR(b.netAmount)} net</div>
-                  {b.newBalance > 0 && <div className="text-red-500 text-xs">Owe: ₹{fmtINR(b.newBalance)}</div>}
+                  {b.newBalance > 0 && <div className="text-red-500 text-xs">I Owe: ₹{fmtINR(b.newBalance)}</div>}
                 </div>
               </Link>
             ))}
@@ -162,8 +173,8 @@ export default function FarmerDetailPage() {
       </div>
 
       {payments.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-          <div className="px-5 py-4 border-b border-gray-100"><h2 className="font-semibold text-gray-900 flex items-center gap-2"><Banknote className="w-4 h-4 text-green-600" /> Payment History</h2></div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div className="px-5 py-4 border-b border-gray-200"><h2 className="font-semibold text-gray-900 flex items-center gap-2"><Banknote className="w-4 h-4 text-green-600" /> Payment History</h2></div>
           <div className="divide-y divide-gray-50">
             {payments.map((p) => (
               <div key={p.id} className="flex items-center justify-between px-5 py-3">

@@ -139,7 +139,7 @@ export default function BillsPage() {
                     <Link
                       key={bill.id}
                       href={`/bills/${bill.id}`}
-                      className="flex items-center justify-between bg-white rounded-xl border border-gray-100 px-4 py-3.5 hover:shadow-sm hover:border-green-200 transition-all"
+                      className="flex items-center justify-between bg-white rounded-xl border border-gray-200 px-4 py-3.5 hover:shadow-sm hover:border-green-200 transition-all"
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center shrink-0">

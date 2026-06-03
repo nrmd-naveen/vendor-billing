@@ -9,7 +9,7 @@ import { Bill, Collection, CUSTOMER_PREFIXES } from '@/lib/types';
 import { fmtINR } from '@/lib/format';
 import clsx from 'clsx';
 
-function CollectionRow({ collection, onSave }: { collection: Collection; onSave: (id: string, newAmount: number, oldAmount: number) => void }) {
+function CollectionRow({ collection, onSave, onDelete }: { collection: Collection; onSave: (id: string, newAmount: number, oldAmount: number) => void; onDelete: (id: string, amount: number) => void }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(collection.amount));
   const inputRef = useRef<HTMLInputElement>(null);
@@ -24,7 +24,7 @@ function CollectionRow({ collection, onSave }: { collection: Collection; onSave:
   };
 
   return (
-    <div className="flex items-center justify-between bg-white rounded-xl border border-gray-100 px-4 py-3">
+    <div className="flex items-center justify-between bg-white rounded-xl border border-gray-200 px-4 py-3">
       <div>
         <div className="font-medium text-gray-900 text-sm flex items-center gap-2">
           <span>Amount Collected</span>
@@ -54,12 +54,15 @@ function CollectionRow({ collection, onSave }: { collection: Collection; onSave:
           </button>
         </div>
       ) : (
-        <div className="flex items-center gap-1.5 group">
+        <div className="flex items-center gap-2 group">
           <span className="font-semibold text-green-700 flex items-center gap-0.5">
             <IndianRupee className="w-3.5 h-3.5" />{fmtINR(collection.amount, 2)}
           </span>
-          <button type="button" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-green-600 transition-opacity">
+          <button type="button" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-green-600 transition-all">
             <Pencil className="w-3.5 h-3.5" />
+          </button>
+          <button type="button" onClick={() => onDelete(collection.id, collection.amount)} className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-50 rounded text-gray-400 hover:text-red-600 transition-all">
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
@@ -71,7 +74,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const router = useRouter();
   const { customers, updateCustomer, deleteCustomer, loaded } = useCustomers();
-  const { bills, loaded: billsLoaded } = useBills();
+  const { bills, refresh: refreshBills, loaded: billsLoaded } = useBills();
   const [mounted, setMounted] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', nickname: '', code: '', phone: '', prefix: 'திரு', pendingBalance: '' });
@@ -79,7 +82,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
   const [collectMode, setCollectMode] = useState(false);
   const [collectAmount, setCollectAmount] = useState('');
   const [collectDone, setCollectDone] = useState(false);
+  const [collectError, setCollectError] = useState('');
   const [collections, setCollections] = useState<Collection[]>([]);
+  const [deleteCollectionConfirm, setDeleteCollectionConfirm] = useState<{ id: string; amount: number } | null>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -145,6 +150,11 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
   };
 
   const handleCollectionEdit = async (collectionId: string, newAmount: number, oldAmount: number) => {
+    const diff = newAmount - oldAmount;
+    if (diff > customer!.pendingBalance) {
+      alert(`Cannot increase collection amount by ₹${fmtINR(diff, 2)} as it exceeds the customer's outstanding balance of ₹${fmtINR(customer!.pendingBalance, 2)}.`);
+      return;
+    }
     const res = await fetch(`/api/collections/${collectionId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -155,12 +165,35 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
       setCollections(prev => prev.map(c => c.id === collectionId ? updated : c));
       // Reflect balance change locally: diff = newAmount - oldAmount, balance decreases by diff
       updateCustomer(id, { pendingBalance: customer!.pendingBalance - (newAmount - oldAmount) });
+      refreshBills();
+    }
+  };
+
+  const handleCollectionDelete = (collectionId: string, amount: number) => {
+    setDeleteCollectionConfirm({ id: collectionId, amount });
+  };
+
+  const executeCollectionDelete = async (collectionId: string, amount: number) => {
+    const res = await fetch(`/api/collections/${collectionId}`, {
+      method: 'DELETE',
+    });
+    if (res.ok) {
+      setCollections(prev => prev.filter(c => c.id !== collectionId));
+      updateCustomer(id, { pendingBalance: customer!.pendingBalance + amount });
+      refreshBills();
+    } else {
+      alert('Failed to delete collection');
     }
   };
 
   const handleCollect = () => {
     const amount = parseFloat(collectAmount);
     if (isNaN(amount) || amount <= 0) return;
+    if (amount > customer.pendingBalance) {
+      setCollectError(`Cannot collect ₹${fmtINR(amount, 2)} as it exceeds customer pending balance of ₹${fmtINR(customer.pendingBalance, 2)}.`);
+      return;
+    }
+    setCollectError('');
     updateCustomer(id, { pendingBalance: customer.pendingBalance - amount });
     const d = new Date();
     const localDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -197,7 +230,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
       </Link>
 
       {/* Customer card */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         {editMode ? (
           <div className="space-y-4">
             <h2 className="font-bold text-lg text-gray-900">Edit Customer</h2>
@@ -293,12 +326,12 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-3 mt-6 pt-5 border-t border-gray-100">
+            <div className="grid grid-cols-3 gap-3 mt-6 pt-5 border-t border-gray-200">
               <div className="text-center">
                 <div className="text-lg font-bold text-gray-900">{customerBills.length}</div>
                 <div className="text-xs text-gray-500">Bills</div>
               </div>
-              <div className="text-center border-x border-gray-100">
+              <div className="text-center border-x border-gray-200">
                 <div className="text-lg font-bold text-gray-900 flex items-center justify-center gap-0.5">
                   <IndianRupee className="w-4 h-4" />{fmtINR(totalSpent)}
                 </div>
@@ -315,7 +348,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
             </div>
 
             {/* Ledger link */}
-            <div className="mt-4 pt-4 border-t border-gray-100">
+            <div className="mt-4 pt-4 border-t border-gray-200">
               <Link
                 href={`/customers/${id}/ledger`}
                 className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium text-green-700 border border-green-200 hover:bg-green-50 transition-colors"
@@ -325,7 +358,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
             </div>
 
             {/* Quick collection */}
-            <div className="mt-3 pt-3 border-t border-gray-100">
+            <div className="mt-3 pt-3 border-t border-gray-200">
               {collectMode ? (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-700">
@@ -339,7 +372,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                         min="0"
                         step="0.01"
                         value={collectAmount}
-                        onChange={(e) => setCollectAmount(e.target.value)}
+                        onChange={(e) => { setCollectAmount(e.target.value); setCollectError(''); }}
                         onKeyDown={(e) => e.key === 'Enter' && handleCollect()}
                         placeholder="e.g. 5000"
                         className="w-full border border-gray-400 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
@@ -349,10 +382,13 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                     <button onClick={handleCollect} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm">
                       Collect
                     </button>
-                    <button onClick={() => { setCollectMode(false); setCollectAmount(''); }} className="px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    <button onClick={() => { setCollectMode(false); setCollectAmount(''); setCollectError(''); }} className="px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
+                  {collectError && (
+                    <div className="text-red-500 text-xs font-semibold mt-1">{collectError}</div>
+                  )}
                   {customer.pendingBalance > 0 && (
                     <p className="text-xs text-gray-400">
                       Current balance: ₹{fmtINR(customer.pendingBalance, 2)} → after collection: ₹{fmtINR(Math.max(0, customer.pendingBalance - (parseFloat(collectAmount) || 0)), 2)}
@@ -401,6 +437,30 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
         </div>
       )}
 
+      {/* Delete collection confirm modal */}
+      {deleteCollectionConfirm && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <h2 className="font-bold text-lg text-gray-900">Delete collection?</h2>
+            <p className="text-gray-500 text-sm">
+              Are you sure you want to delete this collection of <strong>₹{fmtINR(deleteCollectionConfirm.amount, 2)}</strong>?
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteCollectionConfirm(null)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl font-medium hover:bg-gray-50 transition-colors text-sm">
+                Cancel
+              </button>
+              <button onClick={() => {
+                const { id: collId, amount } = deleteCollectionConfirm;
+                setDeleteCollectionConfirm(null);
+                executeCollectionDelete(collId, amount);
+              }} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-medium transition-colors text-sm">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
       <Link
         href={`/bills/new?customerId=${customer.id}`}
@@ -417,7 +477,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
           Bill History
         </h2>
         {customerBills.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-100 p-8 text-center text-gray-400">
+          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">
             No bills yet for this customer.
           </div>
         ) : (
@@ -426,7 +486,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               <Link
                 key={bill.id}
                 href={`/bills/${bill.id}`}
-                className="flex items-center justify-between bg-white rounded-xl border border-gray-100 px-4 py-3 hover:shadow-sm hover:border-green-200 transition-all"
+                className="flex items-center justify-between bg-white rounded-xl border border-gray-200 px-4 py-3 hover:shadow-sm hover:border-green-200 transition-all"
               >
                 <div>
                   <div className="font-medium text-gray-900 text-sm">Bill #{bill.billNumber}</div>
@@ -461,7 +521,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
           </h2>
           <div className="space-y-2">
             {collections.map((c: Collection) => (
-              <CollectionRow key={c.id} collection={c} onSave={handleCollectionEdit} />
+              <CollectionRow key={c.id} collection={c} onSave={handleCollectionEdit} onDelete={handleCollectionDelete} />
             ))}
           </div>
         </div>
@@ -469,7 +529,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
 
       {/* Summary if multiple bills */}
       {customerBills.length > 1 && (
-        <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3 text-sm text-gray-600 space-y-1">
+        <div className="bg-gray-50 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-600 space-y-1">
           <div className="flex justify-between">
             <span>Total billed</span>
             <span className="font-medium">₹{fmtINR(totalSpent, 2)}</span>

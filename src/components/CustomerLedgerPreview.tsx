@@ -95,7 +95,7 @@ export default function CustomerLedgerPreview({
 
   return (
     <div className="bg-white">
-      <div className="flex justify-end gap-2 p-4 border-b border-gray-100 print:hidden">
+      <div className="flex justify-end gap-2 p-4 border-b border-gray-200 print:hidden">
         <button
           onClick={handleSavePDF}
           className={`flex items-center gap-2 ${pdfCopied ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm`}
@@ -243,7 +243,7 @@ export default function CustomerLedgerPreview({
                           </thead>
                           <tbody>
                             {entry.items.map((item, ii) => (
-                              <tr key={ii} className="border-b border-gray-100 last:border-0">
+                              <tr key={ii} className="border-b border-gray-200 last:border-0">
                                 <td className="py-0.5 truncate">{item.name}</td>
                                 <td className="py-0.5 text-center">{item.sacks}</td>
                                 <td className="py-0.5 text-right">{item.totalWeight}</td>

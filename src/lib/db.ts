@@ -709,10 +709,14 @@ export function updateCollectionAmount(id: string, newAmount: number): Collectio
   if (!existing) return null;
   const diff = newAmount - existing.amount;
   txn(db, () => {
-    db.prepare('UPDATE collections SET amount = ? WHERE id = ?').run(newAmount, id);
     if (diff !== 0) {
+      const customer = db.prepare('SELECT pending_balance FROM customers WHERE id = ?').get(existing.customer_id) as { pending_balance: number } | undefined;
+      if (customer && diff > customer.pending_balance) {
+        throw new Error(`Cannot update collection: amount exceeds customer pending balance`);
+      }
       db.prepare('UPDATE customers SET pending_balance = pending_balance - ? WHERE id = ?').run(diff, existing.customer_id);
     }
+    db.prepare('UPDATE collections SET amount = ? WHERE id = ?').run(newAmount, id);
     // If the collection was created for a bill, update the bill's paid amount too
     if (existing.note && existing.note.startsWith('Bill #')) {
       const billNumStr = existing.note.replace('Bill #', '');
@@ -729,6 +733,31 @@ export function updateCollectionAmount(id: string, newAmount: number): Collectio
   });
   const updated = db.prepare('SELECT * FROM collections WHERE id = ?').get(id) as unknown as DBCollection;
   return mapCollection(updated);
+}
+
+export function deleteCollection(id: string): void {
+  const db = getDb();
+  const existing = db.prepare('SELECT * FROM collections WHERE id = ?').get(id) as unknown as DBCollection | undefined;
+  if (!existing) return;
+  txn(db, () => {
+    // 1. Revert customer pending balance
+    db.prepare('UPDATE customers SET pending_balance = pending_balance + ? WHERE id = ?').run(existing.amount, existing.customer_id);
+
+    // 2. If collection was for a bill, reset that bill's paid amount/balance
+    if (existing.note && existing.note.startsWith('Bill #')) {
+      const billNumStr = existing.note.replace('Bill #', '');
+      const billNum = parseInt(billNumStr);
+      if (!isNaN(billNum)) {
+        const bill = db.prepare('SELECT * FROM bills WHERE bill_number = ?').get(billNum) as unknown as DBBill | undefined;
+        if (bill) {
+          db.prepare('UPDATE bills SET amount_paid = 0, new_balance = total_due WHERE id = ?').run(bill.id);
+        }
+      }
+    }
+
+    // 3. Delete from database
+    db.prepare('DELETE FROM collections WHERE id = ?').run(id);
+  });
 }
 
 // ── Shop CRUD ─────────────────────────────────────────────────────────────────
@@ -987,6 +1016,69 @@ export function getAllShopPayments(): ShopPayment[] {
   return (db.prepare('SELECT * FROM shop_payments ORDER BY created_at DESC').all() as unknown as DBShopPayment[]).map(mapShopPayment);
 }
 
+export function updateShopPayment(id: string, newAmount: number, newDiscount: number): ShopPayment | null {
+  const db = getDb();
+  const existing = db.prepare('SELECT * FROM shop_payments WHERE id = ?').get(id) as unknown as DBShopPayment | undefined;
+  if (!existing) return null;
+
+  const oldAmount = existing.amount;
+  const oldDiscount = existing.discount || 0;
+
+  const oldTotal = oldAmount + oldDiscount;
+  const newTotal = newAmount + newDiscount;
+  const diff = newTotal - oldTotal;
+
+  txn(db, () => {
+    if (diff !== 0) {
+      db.prepare('UPDATE shops SET pending_balance = pending_balance - ? WHERE id = ?').run(diff, existing.shop_id);
+    }
+
+    db.prepare('UPDATE shop_payments SET amount = ?, discount = ? WHERE id = ?').run(newAmount, newDiscount, id);
+
+    if (existing.note && existing.note.startsWith('Purchase #')) {
+      const purchaseNumStr = existing.note.replace('Purchase #', '');
+      const purchaseNum = parseInt(purchaseNumStr);
+      if (!isNaN(purchaseNum)) {
+        const purchase = db.prepare('SELECT * FROM purchases WHERE purchase_number = ?').get(purchaseNum) as unknown as DBPurchase | undefined;
+        if (purchase) {
+          const newPaid = newAmount;
+          const newBal = purchase.total_due - newPaid;
+          db.prepare('UPDATE purchases SET amount_paid = ?, new_balance = ? WHERE id = ?').run(newPaid, newBal, purchase.id);
+        }
+      }
+    }
+  });
+
+  const updated = db.prepare('SELECT * FROM shop_payments WHERE id = ?').get(id) as unknown as DBShopPayment;
+  return mapShopPayment(updated);
+}
+
+export function deleteShopPayment(id: string): void {
+  const db = getDb();
+  const existing = db.prepare('SELECT * FROM shop_payments WHERE id = ?').get(id) as unknown as DBShopPayment | undefined;
+  if (!existing) return;
+
+  const totalPaid = existing.amount + (existing.discount || 0);
+
+  txn(db, () => {
+    db.prepare('UPDATE shops SET pending_balance = pending_balance + ? WHERE id = ?').run(totalPaid, existing.shop_id);
+
+    if (existing.note && existing.note.startsWith('Purchase #')) {
+      const purchaseNumStr = existing.note.replace('Purchase #', '');
+      const purchaseNum = parseInt(purchaseNumStr);
+      if (!isNaN(purchaseNum)) {
+        const purchase = db.prepare('SELECT * FROM purchases WHERE purchase_number = ?').get(purchaseNum) as unknown as DBPurchase | undefined;
+        if (purchase) {
+          db.prepare('UPDATE purchases SET amount_paid = 0, new_balance = total_due WHERE id = ?').run(purchase.id);
+        }
+      }
+    }
+
+    db.prepare('DELETE FROM shop_payments WHERE id = ?').run(id);
+  });
+}
+
+
 // ── Farmer CRUD ───────────────────────────────────────────────────────────────
 
 interface DBFarmer {
@@ -1143,7 +1235,14 @@ export function createFarmerBill(data: Omit<FarmerBill, 'billNumber'> & { billNu
 }
 
 export function deleteFarmerBill(id: string): void {
-  getDb().prepare('DELETE FROM farmer_bills WHERE id = ?').run(id);
+  const db = getDb();
+  const bill = db.prepare('SELECT bill_number FROM farmer_bills WHERE id = ?').get(id) as { bill_number: number } | undefined;
+  txn(db, () => {
+    if (bill) {
+      db.prepare('DELETE FROM farmer_payments WHERE note = ?').run(`Bill #${bill.bill_number}`);
+    }
+    db.prepare('DELETE FROM farmer_bills WHERE id = ?').run(id);
+  });
 }
 
 export function updateFarmerBill(id: string, data: Omit<FarmerBill, 'id' | 'billNumber' | 'createdAt'>): FarmerBill | null {
@@ -1178,6 +1277,25 @@ export function updateFarmerBill(id: string, data: Omit<FarmerBill, 'id' | 'bill
       const itemId = crypto.randomUUID();
       insertItem.run(itemId, id, item.vegetableId, item.vegetableName, item.description ?? null, item.emoji, item.pricePerKg, item.totalWeight, item.amount);
       for (const sack of item.sacks) insertSack.run(sack.id, itemId, sack.weight);
+    }
+
+    // Sync farmer payments
+    const paymentNote = `Bill #${updated.billNumber}`;
+    const existingPay = db.prepare('SELECT * FROM farmer_payments WHERE note = ?').get(paymentNote) as DBFarmerPayment | undefined;
+
+    if (updated.amountPaid > 0) {
+      if (existingPay) {
+        db.prepare('UPDATE farmer_payments SET amount = ?, date = ?, farmer_name = ? WHERE id = ?')
+          .run(updated.amountPaid, updated.date, updated.farmerName, existingPay.id);
+      } else {
+        db.prepare(
+          'INSERT INTO farmer_payments (id, farmer_id, farmer_name, amount, date, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        ).run(crypto.randomUUID(), updated.farmerId, updated.farmerName, updated.amountPaid, updated.date, paymentNote, new Date().toISOString());
+      }
+    } else {
+      if (existingPay) {
+        db.prepare('DELETE FROM farmer_payments WHERE id = ?').run(existingPay.id);
+      }
     }
   });
 

@@ -12,7 +12,7 @@ import { fmtINR } from '@/lib/format';
 import clsx from 'clsx';
 import Link from 'next/link';
 
-type RangePreset = 'today' | 'week' | 'month' | 'lastmonth' | 'quarter' | 'all' | 'custom';
+type RangePreset = 'today' | 'yesterday' | 'week' | 'month' | 'lastmonth' | 'quarter' | 'all' | 'custom';
 type ActiveTab = 'summary' | 'sales' | 'purchases' | 'farmers';
 
 function getDateRange(preset: RangePreset, customFrom: string, customTo: string): { from: string; to: string; label: string } {
@@ -22,6 +22,12 @@ function getDateRange(preset: RangePreset, customFrom: string, customTo: string)
   const todayStr = fmt(today);
 
   if (preset === 'today') return { from: todayStr, to: todayStr, label: "Today" };
+  if (preset === 'yesterday') {
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const yesterdayStr = fmt(yesterday);
+    return { from: yesterdayStr, to: yesterdayStr, label: "Yesterday" };
+  }
   if (preset === 'week') {
     const day = today.getDay();
     const start = new Date(today); start.setDate(today.getDate() - day);
@@ -102,6 +108,7 @@ export default function ReportsPage() {
 
   const presets: { key: RangePreset; label: string }[] = [
     { key: 'today', label: 'Today' },
+    { key: 'yesterday', label: 'Yesterday' },
     { key: 'week', label: 'This Week' },
     { key: 'month', label: 'This Month' },
     { key: 'lastmonth', label: 'Last Month' },
@@ -139,7 +146,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Date Range Filter */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 print:hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 print:hidden">
           <div className="flex items-center gap-2 mb-3">
             <Filter className="w-4 h-4 text-gray-400" />
             <span className="text-sm font-medium text-gray-700">Date Range</span>
@@ -193,7 +200,7 @@ export default function ReportsPage() {
         <div id="report-content">
           {/* KPI Summary Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center">
                   <TrendingUp className="w-4 h-4 text-green-600" />
@@ -206,7 +213,7 @@ export default function ReportsPage() {
               <div className="text-xs text-gray-400 mt-1">{filteredBills.length} bill{filteredBills.length !== 1 ? 's' : ''}</div>
             </div>
 
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-9 h-9 bg-orange-50 rounded-lg flex items-center justify-center">
                   <ShoppingCart className="w-4 h-4 text-orange-600" />
@@ -219,7 +226,7 @@ export default function ReportsPage() {
               <div className="text-xs text-gray-400 mt-1">{filteredPurchases.length} purchase{filteredPurchases.length !== 1 ? 's' : ''}</div>
             </div>
 
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-9 h-9 bg-yellow-50 rounded-lg flex items-center justify-center">
                   <Wheat className="w-4 h-4 text-yellow-600" />
@@ -232,7 +239,7 @@ export default function ReportsPage() {
               <div className="text-xs text-gray-400 mt-1">{filteredFarmerBills.length} farmer bill{filteredFarmerBills.length !== 1 ? 's' : ''}</div>
             </div>
 
-            <div className={clsx('rounded-xl p-4 shadow-sm border', netProfit >= 0 ? 'bg-white border-gray-100' : 'bg-red-50 border-red-100')}>
+            <div className={clsx('rounded-xl p-4 shadow-sm border', netProfit >= 0 ? 'bg-white border-gray-200' : 'bg-red-50 border-red-100')}>
               <div className="flex items-center gap-2 mb-2">
                 <div className={clsx('w-9 h-9 rounded-lg flex items-center justify-center', netProfit >= 0 ? 'bg-blue-50' : 'bg-red-100')}>
                   {netProfit >= 0
@@ -251,8 +258,8 @@ export default function ReportsPage() {
           </div>
 
           {/* Tabs */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="border-b border-gray-100 print:hidden">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="border-b border-gray-200 print:hidden">
               <div className="flex overflow-x-auto">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
@@ -285,14 +292,14 @@ export default function ReportsPage() {
                     Profit & Loss — {label}
                   </h3>
                   <div className="space-y-3 max-w-md">
-                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                    <div className="flex items-center justify-between py-2 border-b border-gray-200">
                       <span className="text-gray-600 text-sm flex items-center gap-2">
                         <span className="w-3 h-3 rounded-full bg-green-500 inline-block" />
                         Sales Revenue (விற்பனை)
                       </span>
                       <span className="font-semibold text-green-700">+ ₹{fmtINR(totalSales)}</span>
                     </div>
-                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                    <div className="flex items-center justify-between py-2 border-b border-gray-200">
                       <span className="text-gray-600 text-sm flex items-center gap-2">
                         <span className="w-3 h-3 rounded-full bg-orange-500 inline-block" />
                         Purchase Cost (கொள்முதல்)
@@ -300,7 +307,7 @@ export default function ReportsPage() {
                       <span className="font-semibold text-orange-700">− ₹{fmtINR(totalPurchases)}</span>
                     </div>
                     {totalCommission > 0 && (
-                      <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <div className="flex items-center justify-between py-2 border-b border-gray-200">
                         <span className="text-gray-600 text-sm flex items-center gap-2">
                           <span className="w-3 h-3 rounded-full bg-yellow-500 inline-block" />
                           Commission Earned (கமிஷன்)
@@ -324,7 +331,7 @@ export default function ReportsPage() {
                 </div>
 
                 {/* Payment Status */}
-                <div className="grid sm:grid-cols-3 gap-4 pt-4 border-t border-gray-100">
+                <div className="grid sm:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
                   <div className="bg-green-50 rounded-xl p-4">
                     <div className="text-xs text-green-600 font-medium mb-1 flex items-center gap-1">
                       <Users className="w-3.5 h-3.5" /> Cash Collected
@@ -350,7 +357,7 @@ export default function ReportsPage() {
 
                 {/* Farmer summary */}
                 {filteredFarmerBills.length > 0 && (
-                  <div className="pt-4 border-t border-gray-100">
+                  <div className="pt-4 border-t border-gray-200">
                     <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                       <Wheat className="w-4 h-4 text-yellow-600" />
                       Farmer Transactions
@@ -390,7 +397,7 @@ export default function ReportsPage() {
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="border-b border-gray-100 bg-gray-50 text-gray-500 text-xs">
+                          <tr className="border-b border-gray-200 bg-gray-50 text-gray-500 text-xs">
                             <th className="text-left px-4 py-3 font-medium">Date</th>
                             <th className="text-left px-4 py-3 font-medium">Bill #</th>
                             <th className="text-left px-4 py-3 font-medium">Customer</th>
@@ -450,7 +457,7 @@ export default function ReportsPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-gray-100 bg-gray-50 text-gray-500 text-xs">
+                        <tr className="border-b border-gray-200 bg-gray-50 text-gray-500 text-xs">
                           <th className="text-left px-4 py-3 font-medium">Date</th>
                           <th className="text-left px-4 py-3 font-medium">Purchase #</th>
                           <th className="text-left px-4 py-3 font-medium">Shop</th>
@@ -509,7 +516,7 @@ export default function ReportsPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-gray-100 bg-gray-50 text-gray-500 text-xs">
+                        <tr className="border-b border-gray-200 bg-gray-50 text-gray-500 text-xs">
                           <th className="text-left px-4 py-3 font-medium">Date</th>
                           <th className="text-left px-4 py-3 font-medium">Bill #</th>
                           <th className="text-left px-4 py-3 font-medium">Farmer</th>
@@ -563,7 +570,7 @@ export default function ReportsPage() {
 
         {/* Quick Links */}
         <div className="grid sm:grid-cols-3 gap-4 print:hidden">
-          <Link href="/bills" className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:border-green-200 hover:shadow-md transition-all group flex items-center justify-between">
+          <Link href="/bills" className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:border-green-200 hover:shadow-md transition-all group flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center group-hover:bg-green-100">
                 <FileText className="w-4 h-4 text-green-600" />
@@ -575,7 +582,7 @@ export default function ReportsPage() {
             </div>
             <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-green-500" />
           </Link>
-          <Link href="/purchases" className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:border-orange-200 hover:shadow-md transition-all group flex items-center justify-between">
+          <Link href="/purchases" className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:border-orange-200 hover:shadow-md transition-all group flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-orange-50 rounded-lg flex items-center justify-center group-hover:bg-orange-100">
                 <ShoppingCart className="w-4 h-4 text-orange-600" />
@@ -587,7 +594,7 @@ export default function ReportsPage() {
             </div>
             <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-orange-500" />
           </Link>
-          <Link href="/farmer-bills" className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:border-yellow-200 hover:shadow-md transition-all group flex items-center justify-between">
+          <Link href="/farmer-bills" className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:border-yellow-200 hover:shadow-md transition-all group flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-yellow-50 rounded-lg flex items-center justify-center group-hover:bg-yellow-100">
                 <Wheat className="w-4 h-4 text-yellow-600" />
