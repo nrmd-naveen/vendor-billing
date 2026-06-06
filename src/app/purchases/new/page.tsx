@@ -242,22 +242,6 @@ function NewPurchaseForm() {
         items: items.map(({ _key, ...rest }) => rest),
         subtotal, previousBalance, totalDue, amountPaid: paid, newBalance,
       });
-      if (paid > 0) {
-        await fetch('/api/shop-payments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: crypto.randomUUID(),
-            shopId,
-            shopName: shop!.name,
-            amount: paid,
-            date,
-            note: `Purchase #${purchase.purchaseNumber}`,
-            createdAt: new Date().toISOString(),
-            updateBalance: false,
-          }),
-        });
-      }
       updateShop(shopId, { pendingBalance: newBalance });
       router.push(`/purchases/${purchase.id}`);
     } finally { setSaving(false); }

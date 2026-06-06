@@ -562,7 +562,10 @@ export function getBillById(id: string): Bill | null {
 export function createBill(data: Omit<Bill, 'billNumber'> & { billNumber?: number }): Bill {
   const db = getDb();
   const counter = db.prepare('SELECT value FROM settings WHERE key = ?').get('bill_counter') as unknown as { value: string };
-  const billNumber = parseInt(counter.value) + 1;
+  let billNumber = parseInt(counter.value) + 1;
+  if (billNumber > 9999) {
+    billNumber = 1001;
+  }
   db.prepare('UPDATE settings SET value = ? WHERE key = ?').run(String(billNumber), 'bill_counter');
 
   const bill: Bill = { ...(data as Bill), billNumber };
@@ -591,7 +594,7 @@ export function createBill(data: Omit<Bill, 'billNumber'> & { billNumber?: numbe
 
     // Sync collections
     if (bill.amountPaid > 0) {
-      const collectionNote = `Bill #${bill.billNumber}`;
+      const collectionNote = `Bill #${bill.billNumber} [id: ${bill.id}]`;
       db.prepare(
         'INSERT INTO collections (id, customer_id, customer_name, amount, date, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
       ).run(crypto.randomUUID(), bill.customerId, bill.customerName, bill.amountPaid, bill.date, collectionNote, new Date().toISOString());
@@ -606,7 +609,10 @@ export function deleteBill(id: string): void {
   const bill = db.prepare('SELECT bill_number FROM bills WHERE id = ?').get(id) as { bill_number: number } | undefined;
   txn(db, () => {
     if (bill) {
-      db.prepare('DELETE FROM collections WHERE note = ?').run(`Bill #${bill.bill_number}`);
+      const deleted = db.prepare('DELETE FROM collections WHERE note = ?').run(`Bill #${bill.bill_number} [id: ${id}]`);
+      if (deleted.changes === 0) {
+        db.prepare('DELETE FROM collections WHERE note = ?').run(`Bill #${bill.bill_number}`);
+      }
     }
     db.prepare('DELETE FROM bills WHERE id = ?').run(id);
   });
@@ -648,13 +654,16 @@ export function updateBill(id: string, data: Omit<Bill, 'id' | 'billNumber' | 'c
     }
 
     // Sync collections
-    const collectionNote = `Bill #${updated.billNumber}`;
-    const existingCol = db.prepare('SELECT * FROM collections WHERE note = ?').get(collectionNote) as DBCollection | undefined;
+    const collectionNote = `Bill #${updated.billNumber} [id: ${id}]`;
+    let existingCol = db.prepare('SELECT * FROM collections WHERE note = ?').get(collectionNote) as DBCollection | undefined;
+    if (!existingCol) {
+      existingCol = db.prepare('SELECT * FROM collections WHERE note = ?').get(`Bill #${updated.billNumber}`) as DBCollection | undefined;
+    }
 
     if (updated.amountPaid > 0) {
       if (existingCol) {
-        db.prepare('UPDATE collections SET amount = ?, date = ?, customer_name = ? WHERE id = ?')
-          .run(updated.amountPaid, updated.date, updated.customerName, existingCol.id);
+        db.prepare('UPDATE collections SET amount = ?, date = ?, customer_name = ?, note = ? WHERE id = ?')
+          .run(updated.amountPaid, updated.date, updated.customerName, collectionNote, existingCol.id);
       } else {
         db.prepare(
           'INSERT INTO collections (id, customer_id, customer_name, amount, date, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
@@ -719,15 +728,27 @@ export function updateCollectionAmount(id: string, newAmount: number): Collectio
     db.prepare('UPDATE collections SET amount = ? WHERE id = ?').run(newAmount, id);
     // If the collection was created for a bill, update the bill's paid amount too
     if (existing.note && existing.note.startsWith('Bill #')) {
-      const billNumStr = existing.note.replace('Bill #', '');
-      const billNum = parseInt(billNumStr);
-      if (!isNaN(billNum)) {
-        const bill = db.prepare('SELECT * FROM bills WHERE bill_number = ?').get(billNum) as unknown as DBBill | undefined;
-        if (bill) {
-          const newPaid = newAmount;
-          const newBal = bill.total_due - newPaid;
-          db.prepare('UPDATE bills SET amount_paid = ?, new_balance = ? WHERE id = ?').run(newPaid, newBal, bill.id);
+      let billId: string | undefined = undefined;
+      const match = existing.note.match(/\[id:\s*([^\]]+)\]/);
+      if (match) {
+        billId = match[1];
+      }
+
+      let bill: DBBill | undefined = undefined;
+      if (billId) {
+        bill = db.prepare('SELECT * FROM bills WHERE id = ?').get(billId) as unknown as DBBill | undefined;
+      } else {
+        const billNumStr = existing.note.replace('Bill #', '');
+        const billNum = parseInt(billNumStr);
+        if (!isNaN(billNum)) {
+          bill = db.prepare('SELECT * FROM bills WHERE bill_number = ?').get(billNum) as unknown as DBBill | undefined;
         }
+      }
+
+      if (bill) {
+        const newPaid = newAmount;
+        const newBal = bill.total_due - newPaid;
+        db.prepare('UPDATE bills SET amount_paid = ?, new_balance = ? WHERE id = ?').run(newPaid, newBal, bill.id);
       }
     }
   });
@@ -745,13 +766,25 @@ export function deleteCollection(id: string): void {
 
     // 2. If collection was for a bill, reset that bill's paid amount/balance
     if (existing.note && existing.note.startsWith('Bill #')) {
-      const billNumStr = existing.note.replace('Bill #', '');
-      const billNum = parseInt(billNumStr);
-      if (!isNaN(billNum)) {
-        const bill = db.prepare('SELECT * FROM bills WHERE bill_number = ?').get(billNum) as unknown as DBBill | undefined;
-        if (bill) {
-          db.prepare('UPDATE bills SET amount_paid = 0, new_balance = total_due WHERE id = ?').run(bill.id);
+      let billId: string | undefined = undefined;
+      const match = existing.note.match(/\[id:\s*([^\]]+)\]/);
+      if (match) {
+        billId = match[1];
+      }
+
+      let bill: DBBill | undefined = undefined;
+      if (billId) {
+        bill = db.prepare('SELECT * FROM bills WHERE id = ?').get(billId) as unknown as DBBill | undefined;
+      } else {
+        const billNumStr = existing.note.replace('Bill #', '');
+        const billNum = parseInt(billNumStr);
+        if (!isNaN(billNum)) {
+          bill = db.prepare('SELECT * FROM bills WHERE bill_number = ?').get(billNum) as unknown as DBBill | undefined;
         }
+      }
+
+      if (bill) {
+        db.prepare('UPDATE bills SET amount_paid = 0, new_balance = total_due WHERE id = ?').run(bill.id);
       }
     }
 

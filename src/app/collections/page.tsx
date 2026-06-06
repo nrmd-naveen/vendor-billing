@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Banknote, Search, X, IndianRupee, Calendar, TrendingUp, Users, Check, Pencil, Trash2 } from 'lucide-react';
 import { Collection } from '@/lib/types';
 import clsx from 'clsx';
-import { fmtINR } from '@/lib/format';
+import { fmtINR, cleanNote } from '@/lib/format';
 import { useCustomers } from '@/lib/storage';
 
 function getLocalDate() {
@@ -331,7 +331,7 @@ export default function CollectionsPage() {
                             <span>{new Date(c.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                             {c.note && c.note.startsWith('Bill #') && (
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-medium text-[10px] border border-blue-100">
-                                {c.note}
+                                {cleanNote(c.note)}
                               </span>
                             )}
                           </div>

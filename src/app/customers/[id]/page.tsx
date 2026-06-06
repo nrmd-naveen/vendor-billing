@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useCustomers, useBills } from '@/lib/storage';
 import { ArrowLeft, Phone, IndianRupee, FileText, PlusCircle, Edit2, Trash2, Check, X, Banknote, Pencil, BookOpen } from 'lucide-react';
 import { Bill, Collection, CUSTOMER_PREFIXES } from '@/lib/types';
-import { fmtINR } from '@/lib/format';
+import { fmtINR, cleanNote } from '@/lib/format';
 import clsx from 'clsx';
 
 function CollectionRow({ collection, onSave, onDelete }: { collection: Collection; onSave: (id: string, newAmount: number, oldAmount: number) => void; onDelete: (id: string, amount: number) => void }) {
@@ -30,7 +30,7 @@ function CollectionRow({ collection, onSave, onDelete }: { collection: Collectio
           <span>Amount Collected</span>
           {collection.note && collection.note.startsWith('Bill #') && (
             <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-medium text-[10px] border border-blue-100">
-              {collection.note}
+              {cleanNote(collection.note)}
             </span>
           )}
         </div>

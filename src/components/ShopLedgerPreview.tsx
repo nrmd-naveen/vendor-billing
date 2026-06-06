@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useSettings } from '@/lib/useSettings';
-import { fmtINR } from '@/lib/format';
+import { fmtINR, cleanNote } from '@/lib/format';
 import { Printer, Download, FileDown } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
@@ -272,7 +272,7 @@ export default function ShopLedgerPreview({
                       ) : entry.type === 'payment' ? (
                         <div className="py-0.5">
                           <div className="font-semibold text-green-800">கட்டணம்</div>
-                          {entry.note && <div className="text-gray-500 text-[11px]">குறிப்பு: {entry.note}</div>}
+                          {entry.note && <div className="text-gray-500 text-[11px]">குறிப்பு: {cleanNote(entry.note)}</div>}
                           {entry.discount && entry.discount > 0 ? (
                             <div className="text-orange-600 text-[11px]">தள்ளுபடி: ₹{fmtINR(entry.discount, 2)}</div>
                           ) : null}

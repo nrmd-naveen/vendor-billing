@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useShops, usePurchases, useShopPayments } from '@/lib/storage';
 import { ArrowLeft, IndianRupee, Banknote, Edit2, Check, X, FileText, Plus, BookOpen } from 'lucide-react';
 import Link from 'next/link';
-import { fmtINR } from '@/lib/format';
+import { fmtINR, cleanNote } from '@/lib/format';
 import clsx from 'clsx';
 
 export default function ShopDetailPage() {
@@ -244,7 +244,7 @@ export default function ShopDetailPage() {
               <div key={pay.id} className="flex items-center justify-between px-5 py-3">
                 <div>
                   <div className="text-sm font-medium text-gray-900">{new Date(pay.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</div>
-                  {pay.note && <div className="text-xs text-gray-400">{pay.note}</div>}
+                  {pay.note && <div className="text-xs text-gray-400">{cleanNote(pay.note)}</div>}
                 </div>
                 <div className="text-right">
                   <div className="font-semibold text-green-700 text-sm">₹{fmtINR(pay.amount)}</div>

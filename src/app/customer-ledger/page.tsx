@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useCustomers, useBills } from '@/lib/storage';
-import { fmtINR } from '@/lib/format';
+import { fmtINR, cleanNote } from '@/lib/format';
 import { Search, X, Users, BookOpen, Calendar, Filter, ChevronDown } from 'lucide-react';
 import { Customer, Collection } from '@/lib/types';
 import clsx from 'clsx';
@@ -433,7 +433,7 @@ export default function CustomerLedgerPage() {
                               ) : entry.type === 'payment' ? (
                                 <div>
                                   <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 mr-1.5">வசூல்</span>
-                                  {entry.note && <span className="text-gray-500 text-xs">குறிப்பு: {entry.note}</span>}
+                                  {entry.note && <span className="text-gray-500 text-xs">குறிப்பு: {cleanNote(entry.note)}</span>}
                                 </div>
                               ) : (
                                 <span className="text-xs text-green-700 font-semibold">விற்பனை</span>

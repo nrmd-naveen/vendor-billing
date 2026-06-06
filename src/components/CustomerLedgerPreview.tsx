@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useSettings } from '@/lib/useSettings';
-import { fmtINR } from '@/lib/format';
+import { fmtINR, cleanNote } from '@/lib/format';
 import { Printer, Download, FileDown } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { LedgerEntry, LedgerItemRow } from './ShopLedgerPreview';
@@ -255,7 +255,7 @@ export default function CustomerLedgerPreview({
                       ) : entry.type === 'payment' ? (
                         <div className="py-0.5">
                           <div className="font-semibold text-green-800">வசூல்</div>
-                          {entry.note && <div className="text-gray-500 text-[11px]">குறிப்பு: {entry.note}</div>}
+                          {entry.note && <div className="text-gray-500 text-[11px]">குறிப்பு: {cleanNote(entry.note)}</div>}
                         </div>
                       ) : (
                         <div className="py-0.5 font-semibold text-green-800">விற்பனை</div>

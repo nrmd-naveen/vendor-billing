@@ -9,3 +9,11 @@ export function fmtINR(n: number, decimals = 0): string {
     maximumFractionDigits: decimals,
   });
 }
+
+/**
+ * Strip the [id: ...] unique suffix from notes for cleaner UI display.
+ */
+export function cleanNote(note: string | null | undefined): string {
+  if (!note) return '';
+  return note.split(' [id:')[0];
+}

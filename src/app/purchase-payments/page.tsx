@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Banknote, Search, X, IndianRupee, Calendar, TrendingUp, Store, Check, Pencil, Trash2 } from 'lucide-react';
 import { ShopPayment } from '@/lib/types';
 import clsx from 'clsx';
-import { fmtINR } from '@/lib/format';
+import { fmtINR, cleanNote } from '@/lib/format';
 import { useShops } from '@/lib/storage';
 
 function getLocalDate() {
@@ -366,7 +366,7 @@ export default function PurchasePaymentsPage() {
                         </div>
                         <div>
                           <div className="font-medium text-gray-900">{p.shopName}</div>
-                          {p.note && <div className="text-gray-400 text-xs">{p.note}</div>}
+                          {p.note && <div className="text-gray-400 text-xs">{cleanNote(p.note)}</div>}
                           {!p.note && (
                             <div className="text-gray-400 text-xs">
                               {new Date(p.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}

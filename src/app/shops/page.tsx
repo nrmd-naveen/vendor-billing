@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useShops, usePurchases } from '@/lib/storage';
-import { Search, Plus, X, Store, IndianRupee, Banknote, Trash2, ChevronRight } from 'lucide-react';
+import { Search, Plus, X, Store, IndianRupee, Banknote, ChevronRight } from 'lucide-react';
 import { Shop } from '@/lib/types';
 import { fmtINR } from '@/lib/format';
 import Link from 'next/link';
